@@ -6,387 +6,188 @@
 <meta name="theme-color" content="#0a0d16" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Meetly" />
-<meta name="description" content="Video calls and text groups that work with meeting codes." />
-<title>Meetly — Calls &amp; Text Groups</title>
+<title>Meetly — Connect & Call</title>
 
 <style>
 /* =========================================================================
-   HARDWARE-ACCELERATION OFF
+   HARDWARE-ACCELERATION OFF & TRANSLUCENT UI
    ========================================================================= */
 *,*::before,*::after{
-  will-change:auto !important;
-  transform:none !important;
-  filter:none !important;
-  backdrop-filter:none !important;
-  -webkit-backdrop-filter:none !important;
-  perspective:none !important;
-  backface-visibility:visible !important;
-  mix-blend-mode:normal !important;
-  isolation:auto !important;
-  animation:none !important;
+  will-change:auto !important; transform:none !important; filter:none !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  perspective:none !important; backface-visibility:visible !important;
+  mix-blend-mode:normal !important; isolation:auto !important; animation:none !important;
   transition-property:background-color,border-color,color,box-shadow !important;
-  transition-duration:.12s !important;
-  transition-timing-function:linear !important;
+  transition-duration:.12s !important; transition-timing-function:linear !important;
 }
-
 :root{
-  --fg:#eef1f7;
-  --muted:#a3acc4;
-  --glass:rgba(255,255,255,.06);
-  --glass-2:rgba(255,255,255,.11);
-  --glass-3:rgba(255,255,255,.17);
-  --stroke:rgba(255,255,255,.14);
-  --stroke-2:rgba(255,255,255,.24);
-  --accent:#3b6bf5;
-  --accent-hi:#5b8cff;
-  --accent-2:#8b5bff;
-  --danger:#e5484d;
-  --ok:#2ecc71;
-  --warn:#f5a524;
-  --r:16px;
-  --safe-t:env(safe-area-inset-top,0px);
-  --safe-b:env(safe-area-inset-bottom,0px);
-  --safe-l:env(safe-area-inset-left,0px);
-  --safe-r:env(safe-area-inset-right,0px);
+  --fg:#eef1f7; --muted:#a3acc4; --glass:rgba(255,255,255,.06); --glass-2:rgba(255,255,255,.11);
+  --glass-3:rgba(255,255,255,.17); --stroke:rgba(255,255,255,.14); --stroke-2:rgba(255,255,255,.24);
+  --accent:#3b6bf5; --accent-hi:#5b8cff; --accent-2:#8b5bff; --danger:#e5484d;
+  --ok:#2ecc71; --warn:#f5a524; --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
 }
-
 html,body{height:100%;margin:0}
 body{
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-  color:var(--fg);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--fg);
   background-color:#0a0d16;
   background-image:
-    radial-gradient(900px 640px at 8% -8%,   #2b4185 0%, rgba(43,65,133,0) 60%),
+    radial-gradient(900px 640px at 8% -8%, #2b4185 0%, rgba(43,65,133,0) 60%),
     radial-gradient(820px 600px at 96% 108%, #6a2b8f 0%, rgba(106,43,143,0) 60%),
-    radial-gradient(700px 480px at 50% 48%,  #1d4f7a 0%, rgba(29,79,122,0) 70%),
+    radial-gradient(700px 480px at 50% 48%, #1d4f7a 0%, rgba(29,79,122,0) 70%),
     linear-gradient(160deg,#0a0d16 0%,#121728 55%,#0c0f1d 100%);
-  overflow:hidden;
-  -webkit-tap-highlight-color:transparent;
-  -webkit-font-smoothing:antialiased;
+  overflow:hidden; -webkit-tap-highlight-color:transparent; -webkit-font-smoothing:antialiased;
   overscroll-behavior:none;
 }
 #app{position:relative;height:100vh;height:100dvh;overflow:hidden}
+
+/* Error overlay */
+#error-overlay {
+  display:none; position:fixed; inset:0; z-index:9999; background:rgba(180,20,20,0.95);
+  color:#fff; padding:20px; overflow:auto; font-family:monospace; white-space:pre-wrap;
+}
 
 /* ---------- screens ---------- */
 .screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
 .screen.active{display:flex}
 
-/* ---------- top bar ---------- */
+/* ---------- UI Components ---------- */
 .topbar{
-  flex:0 0 auto;display:flex;align-items:center;gap:12px;
-  padding:12px 16px;
-  padding-top:calc(12px + var(--safe-t));
-  padding-left:calc(16px + var(--safe-l));
-  padding-right:calc(16px + var(--safe-r));
-  background:var(--glass);
-  border-bottom:1px solid var(--stroke);
+  flex:0 0 auto; display:flex; align-items:center; gap:12px; padding:12px 16px;
+  padding-top:calc(12px + var(--safe-t)); padding-left:calc(16px + var(--safe-l));
+  padding-right:calc(16px + var(--safe-r)); background:var(--glass); border-bottom:1px solid var(--stroke);
 }
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;letter-spacing:.2px}
-.brand .logo{
-  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--accent),var(--accent-2));
-  font-size:15px;color:#fff;
-}
+.brand .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));font-size:15px;color:#fff;}
 .title{font-weight:700;font-size:16px;line-height:1.15}
 .title-stack{display:flex;flex-direction:column;min-width:0}
 .sub{font-size:12px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .spacer{flex:1 1 auto}
 .status{font-size:12.5px;color:var(--muted);white-space:nowrap}
-.status.ok{color:var(--ok)}
-.status.warn{color:var(--warn)}
+.status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
 
-/* ---------- buttons ---------- */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  min-height:46px;padding:0 18px;border-radius:14px;
-  border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);
-  font:inherit;font-weight:600;font-size:15px;cursor:pointer;user-select:none;
-}
-.btn:hover{background:var(--glass-3);border-color:var(--stroke-2)}
-.btn:active{background:rgba(255,255,255,.26)}
-.btn.primary{background:var(--accent);border-color:var(--accent-hi);color:#fff}
-.btn.primary:hover{background:var(--accent-hi)}
-.btn.danger{background:var(--danger);border-color:#f0666a;color:#fff}
-.btn.ghost{background:transparent}
-.btn.block{width:100%}
-.btn.small{min-height:38px;padding:0 14px;font-size:14px;border-radius:11px}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.icon-btn{
-  width:44px;height:44px;flex:0 0 auto;border-radius:13px;
-  display:grid;place-items:center;font-size:17px;
-  border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);
-  cursor:pointer;font:inherit;
-}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 18px;border-radius:14px;border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);font:inherit;font-weight:600;font-size:15px;cursor:pointer;user-select:none;}
+.btn:hover{background:var(--glass-3);border-color:var(--stroke-2)} .btn:active{background:rgba(255,255,255,.26)}
+.btn.primary{background:var(--accent);border-color:var(--accent-hi);color:#fff} .btn.primary:hover{background:var(--accent-hi)}
+.btn.danger{background:var(--danger);border-color:#f0666a;color:#fff} .btn.ghost{background:transparent}
+.btn.block{width:100%} .btn.small{min-height:38px;padding:0 14px;font-size:14px;border-radius:11px} .btn:disabled{opacity:.45;cursor:not-allowed}
+.icon-btn{width:44px;height:44px;flex:0 0 auto;border-radius:13px;display:grid;place-items:center;font-size:17px;border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);cursor:pointer;font:inherit;}
 .icon-btn:hover{background:var(--glass-3)}
-.pill{
-  min-height:38px;padding:0 15px;border-radius:999px;
-  border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);
-  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
-  max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
+.pill{min-height:38px;padding:0 15px;border-radius:999px;border:1px solid var(--stroke);background:var(--glass-2);color:var(--fg);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-/* ---------- inputs ---------- */
+/* Inputs */
 .field{display:flex;flex-direction:column;gap:7px;margin-bottom:15px}
 .field > label{font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.02em}
-.input{
-  width:100%;min-height:50px;padding:0 15px;border-radius:14px;
-  border:1px solid var(--stroke);background:rgba(255,255,255,.07);
-  color:var(--fg);font:inherit;font-size:16px;outline:none;
-}
-.input::placeholder{color:#767f9c}
-.input:focus{border-color:var(--accent-hi);background:rgba(255,255,255,.12)}
-.row{display:flex;gap:10px;align-items:center}
-.row .input{flex:1 1 auto;min-width:0}
+.input{width:100%;min-height:50px;padding:0 15px;border-radius:14px;border:1px solid var(--stroke);background:rgba(255,255,255,.07);color:var(--fg);font:inherit;font-size:16px;outline:none;}
+.input::placeholder{color:#767f9c} .input:focus{border-color:var(--accent-hi);background:rgba(255,255,255,.12)}
+.row{display:flex;gap:10px;align-items:center} .row .input{flex:1 1 auto;min-width:0}
 
-/* ---------- scroll + cards ---------- */
+/* Scroll & Cards */
 .scroll{flex:1 1 auto;overflow-y:auto;padding:20px 16px calc(28px + var(--safe-b))}
 .scroll.narrow{max-width:620px;width:100%;margin:0 auto}
-.card{
-  background:var(--glass);border:1px solid var(--stroke);border-radius:20px;
-  padding:20px;
-}
-.hero{margin:6px 0 22px}
-.hero h1{margin:0 0 6px;font-size:26px;letter-spacing:-.4px}
-.muted{color:var(--muted)}
-.hero p{margin:0;font-size:14.5px}
-h2.sec{
-  font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;
-  color:var(--muted);margin:26px 0 12px;font-weight:700;
-}
+.card{background:var(--glass);border:1px solid var(--stroke);border-radius:20px;padding:20px;}
+.hero{margin:6px 0 22px} .hero h1{margin:0 0 6px;font-size:26px;letter-spacing:-.4px}
+.muted{color:var(--muted)} .hero p{margin:0;font-size:14.5px}
+h2.sec{font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:26px 0 12px;font-weight:700;}
 
-/* ---------- tiles ---------- */
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px}
-.tile{
-  display:flex;flex-direction:column;align-items:flex-start;gap:5px;
-  min-height:132px;padding:18px;border-radius:20px;text-align:left;
-  background:var(--glass);border:1px solid var(--stroke);color:var(--fg);
-  font:inherit;cursor:pointer;
-}
-.tile:hover{background:var(--glass-2);border-color:var(--stroke-2)}
-.tile:active{background:var(--glass-3)}
-.tile .ico{font-size:26px;line-height:1;margin-bottom:8px}
-.tile b{font-size:16px}
-.tile small{color:var(--muted);font-size:12.5px}
+/* Tiles */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:13px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-height:120px;padding:18px;border-radius:20px;text-align:left;background:var(--glass);border:1px solid var(--stroke);color:var(--fg);font:inherit;cursor:pointer;}
+.tile:hover{background:var(--glass-2);border-color:var(--stroke-2)} .tile:active{background:var(--glass-3)}
+.tile .ico{font-size:26px;line-height:1;margin-bottom:8px} .tile b{font-size:16px} .tile small{color:var(--muted);font-size:12.5px}
 
-/* ---------- lists ---------- */
+/* Lists */
 .list{display:flex;flex-direction:column;gap:10px}
-.item{
-  display:flex;align-items:center;gap:12px;
-  padding:14px 15px;border-radius:16px;
-  background:var(--glass);border:1px solid var(--stroke);
-}
+.item{display:flex;align-items:center;gap:12px;padding:14px 15px;border-radius:16px;background:var(--glass);border:1px solid var(--stroke);}
 .item .grow{flex:1 1 auto;min-width:0}
 .item .t{font-weight:650;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .s{font-size:12.5px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
-.empty{
-  text-align:center;color:var(--muted);font-size:13.5px;
-  padding:26px 14px;border:1px dashed var(--stroke);border-radius:16px;
-}
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 14px;border:1px dashed var(--stroke);border-radius:16px;}
 
-/* ---------- meeting room ---------- */
-#scr-meet{position:relative}
-.stage{
-  position:relative;flex:1 1 auto;min-height:0;background:#05070d;overflow:hidden;
-}
-#remoteVideo{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:contain;background:#05070d;
-}
-#localVideo{
-  position:absolute;right:12px;
-  bottom:calc(94px + var(--safe-b));
-  width:26vw;min-width:104px;max-width:170px;
-  aspect-ratio:3/4;object-fit:cover;
-  border-radius:14px;border:1px solid var(--stroke-2);
-  background:#000;z-index:3;
-}
-
-.meet-top{
-  position:absolute;top:0;left:0;right:0;
-  display:flex;align-items:center;gap:10px;
-  padding:10px 14px;
-  padding-top:calc(10px + var(--safe-t));
-  padding-left:calc(14px + var(--safe-l));
-  padding-right:calc(14px + var(--safe-r));
-  background:linear-gradient(to bottom,
-    rgba(10,13,22,.80) 0%,
-    rgba(10,13,22,.42) 60%,
-    rgba(10,13,22,0) 100%);
-  z-index:6;
-  pointer-events:none;
-}
+/* Meeting Room */
+#scr-meet{position:relative} .stage{position:relative;flex:1 1 auto;min-height:0;background:#05070d;overflow:hidden;}
+#remoteVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d;}
+#localVideo{position:absolute;right:12px;bottom:calc(94px + var(--safe-b));width:26vw;min-width:104px;max-width:170px;aspect-ratio:3/4;object-fit:cover;border-radius:14px;border:1px solid var(--stroke-2);background:#000;z-index:3;}
+.meet-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + var(--safe-t));padding-left:calc(14px + var(--safe-l));padding-right:calc(14px + var(--safe-r));background:linear-gradient(to bottom, rgba(10,13,22,.80) 0%, rgba(10,13,22,.42) 60%, rgba(10,13,22,0) 100%);z-index:6;pointer-events:none;}
 .meet-top > *{pointer-events:auto}
+.meet-controls{position:absolute;left:0;right:0;bottom:0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:16px 14px;padding-bottom:calc(16px + var(--safe-b));background:linear-gradient(to top, rgba(10,13,22,.85) 0%, rgba(10,13,22,.45) 55%, rgba(10,13,22,0) 100%);z-index:6;}
+.ctl{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:74px;min-height:60px;padding:6px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.16);color:var(--fg);font:inherit;cursor:pointer;}
+.ctl:hover{background:rgba(255,255,255,.26);border-color:rgba(255,255,255,.36)} .ctl:active{background:rgba(255,255,255,.34)}
+.ctl span{font-size:19px;line-height:1} .ctl small{font-size:11px;color:#d8dced;font-weight:600}
+.ctl.off{background:rgba(229,72,77,.35);border-color:rgba(229,72,77,.7)} .ctl.off small{color:#ffd9da}
+.ctl.danger{background:rgba(229,72,77,.88);border-color:#f0666a} .ctl.danger small{color:#fff}
+.stage-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:14.5px;background:rgba(5,7,13,.55);z-index:2;}
 
-.meet-controls{
-  position:absolute;left:0;right:0;
-  bottom:0;
-  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
-  padding:16px 14px;
-  padding-bottom:calc(16px + var(--safe-b));
-  background:linear-gradient(to top,
-    rgba(10,13,22,.85) 0%,
-    rgba(10,13,22,.45) 55%,
-    rgba(10,13,22,0) 100%);
-  z-index:6;
-}
-.ctl{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  min-width:74px;min-height:60px;padding:6px 12px;border-radius:16px;
-  border:1px solid rgba(255,255,255,.24);
-  background:rgba(255,255,255,.16);
-  color:var(--fg);font:inherit;cursor:pointer;
-}
-.ctl:hover{background:rgba(255,255,255,.26);border-color:rgba(255,255,255,.36)}
-.ctl:active{background:rgba(255,255,255,.34)}
-.ctl span{font-size:19px;line-height:1}
-.ctl small{font-size:11px;color:#d8dced;font-weight:600}
-.ctl.off{background:rgba(229,72,77,.35);border-color:rgba(229,72,77,.7)}
-.ctl.off small{color:#ffd9da}
-.ctl.danger{background:rgba(229,72,77,.88);border-color:#f0666a}
-.ctl.danger small{color:#fff}
-
-.stage-overlay{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  text-align:center;padding:24px;color:var(--muted);font-size:14.5px;
-  background:rgba(5,7,13,.55);z-index:2;
-}
-
-/* ---------- chat drawer ---------- */
-.drawer{
-  position:absolute;top:0;right:0;bottom:0;width:min(360px,100%);
-  display:none;flex-direction:column;
-  background:rgba(14,18,30,.92);
-  border-left:1px solid var(--stroke);
-  z-index:20;
-  padding-top:var(--safe-t);padding-bottom:var(--safe-b);
-}
+/* Chat & Messages */
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(360px,100%);display:none;flex-direction:column;background:rgba(14,18,30,.92);border-left:1px solid var(--stroke);z-index:20;padding-top:var(--safe-t);padding-bottom:var(--safe-b);}
 .drawer.open{display:flex}
-.drawer-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:12px 14px;border-bottom:1px solid var(--stroke);
-  font-weight:700;font-size:15px;
-}
-
-/* ---------- messages ---------- */
-.msglist{
-  flex:1 1 auto;min-height:0;overflow-y:auto;
-  padding:16px;display:flex;flex-direction:column;gap:10px;
-}
-.bubble{
-  max-width:84%;padding:9px 13px;border-radius:15px;
-  background:var(--glass-2);border:1px solid var(--stroke);
-  font-size:14.5px;line-height:1.42;word-wrap:break-word;overflow-wrap:anywhere;
-}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--stroke);font-weight:700;font-size:15px;}
+.msglist{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+.bubble{max-width:84%;padding:9px 13px;border-radius:15px;background:var(--glass-2);border:1px solid var(--stroke);font-size:14.5px;line-height:1.42;word-wrap:break-word;overflow-wrap:anywhere;}
 .bubble .meta{font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:600}
-.bubble.me{align-self:flex-end;background:rgba(59,107,245,.85);border-color:rgba(91,140,255,.9)}
-.bubble.me .meta{color:rgba(255,255,255,.72)}
-.bubble.sys{
-  align-self:center;background:transparent;border:0;
-  color:var(--muted);font-size:12px;padding:2px;max-width:100%;text-align:center;
-}
-.composer{
-  flex:0 0 auto;display:flex;gap:9px;padding:12px 14px;
-  border-top:1px solid var(--stroke);background:var(--glass);
-}
+.bubble.me{align-self:flex-end;background:rgba(59,107,245,.85);border-color:rgba(91,140,255,.9)} .bubble.me .meta{color:rgba(255,255,255,.72)}
+.bubble.sys{align-self:center;background:transparent;border:0;color:var(--muted);font-size:12px;padding:2px;max-width:100%;text-align:center;}
+.bubble img{max-width:100%;border-radius:8px;margin-top:4px;display:block;cursor:pointer;}
+.composer{flex:0 0 auto;display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--stroke);background:var(--glass);}
 .composer .input{min-height:46px}
 
-/* ---------- toast + modal ---------- */
-#toast{
-  position:fixed;left:50%;bottom:calc(26px + var(--safe-b));
-  margin-left:-140px;width:280px;text-align:center;
-  padding:11px 16px;border-radius:14px;font-size:13.5px;font-weight:600;
-  background:rgba(20,26,42,.97);border:1px solid var(--stroke-2);
-  color:var(--fg);z-index:200;display:none;
-}
+/* Toast & Modal */
+#toast{position:fixed;left:50%;bottom:calc(26px + var(--safe-b));margin-left:-140px;width:280px;text-align:center;padding:11px 16px;border-radius:14px;font-size:13.5px;font-weight:600;background:rgba(20,26,42,.97);border:1px solid var(--stroke-2);color:var(--fg);z-index:200;display:none;}
 #toast.show{display:block}
-.modal{
-  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-  padding:20px;background:rgba(4,6,12,.72);z-index:150;
-}
-.modal.open{display:flex}
-.modal .card{max-width:400px;width:100%}
-.modal h2{margin:0 0 16px;font-size:18px}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,6,12,.72);z-index:150;}
+.modal.open{display:flex} .modal .card{max-width:400px;width:100%} .modal h2{margin:0 0 16px;font-size:18px}
 
 @media (max-width:480px){
-  .hero h1{font-size:22px}
-  #localVideo{width:30vw}
+  .hero h1{font-size:22px} #localVideo{width:30vw}
   .ctl{min-width:66px;min-height:56px;padding:6px 9px}
-  .grid{grid-template-columns:repeat(2,1fr);gap:11px}
-  .tile{min-height:118px;padding:15px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:11px} .tile{min-height:100px;padding:15px}
 }
 </style>
-
-<script>
-/* ===== PWA manifest + icons ===== */
-(function () {
-  function roundRect(g,x,y,w,h,r){
-    g.beginPath();
-    g.moveTo(x+r,y);
-    g.arcTo(x+w,y,x+w,y+h,r);
-    g.arcTo(x+w,y+h,x,y+h,r);
-    g.arcTo(x,y+h,x,y,r);
-    g.arcTo(x,y,x+w,y,r);
-    g.closePath();
-  }
-  function makeIcon(size){
-    var c=document.createElement('canvas'); c.width=c.height=size;
-    var g=c.getContext('2d');
-    var grd=g.createLinearGradient(0,0,size,size);
-    grd.addColorStop(0,'#3b6bf5'); grd.addColorStop(1,'#8b5bff');
-    g.fillStyle=grd; roundRect(g,0,0,size,size,size*0.22); g.fill();
-    var w=size*0.46,h=size*0.32,x=(size-w)/2,y=(size-h)/2;
-    g.fillStyle='#ffffff';
-    roundRect(g,x,y,w,h,size*0.055); g.fill();
-    g.beginPath();
-    g.moveTo(x+w+size*0.02, y+h*0.30);
-    g.lineTo(x+w+size*0.13, y+h*0.12);
-    g.lineTo(x+w+size*0.13, y+h*0.88);
-    g.lineTo(x+w+size*0.02, y+h*0.70);
-    g.closePath(); g.fill();
-    return c.toDataURL('image/png');
-  }
-  try{
-    var i192=makeIcon(192), i512=makeIcon(512);
-    var manifest={
-      name:'Meetly — Calls & Text Groups', short_name:'Meetly',
-      description:'Video calls and text groups that work with meeting codes.',
-      start_url:'./', scope:'./', display:'standalone', orientation:'any',
-      background_color:'#0a0d16', theme_color:'#0a0d16',
-      icons:[
-        {src:i192,sizes:'192x192',type:'image/png',purpose:'any'},
-        {src:i512,sizes:'512x512',type:'image/png',purpose:'any'},
-        {src:i512,sizes:'512x512',type:'image/png',purpose:'maskable'}
-      ]
-    };
-    var l=document.createElement('link');
-    l.rel='manifest';
-    l.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
-    document.head.appendChild(l);
-    var a=document.createElement('link'); a.rel='apple-touch-icon'; a.href=i192; document.head.appendChild(a);
-    var f=document.createElement('link'); f.rel='icon'; f.href=i192; document.head.appendChild(f);
-  }catch(e){}
-})();
-</script>
 </head>
 <body>
 
-<div id="app">
+<div id="error-overlay"></div>
 
-  <!-- ================= HOME ================= -->
-  <section id="scr-home" class="screen active">
+<div id="app">
+  <!-- LOGIN SCREEN -->
+  <section id="scr-login" class="screen active">
+    <div class="scroll narrow" style="display:flex;align-items:center;justify-content:center;height:100%">
+      <div class="card" style="width:100%;max-width:360px">
+        <div class="brand" style="justify-content:center;margin-bottom:20px;font-size:24px"><span class="logo" style="width:40px;height:40px;font-size:20px">◈</span> Meetly</div>
+        <h2 style="text-align:center;margin-bottom:20px;font-weight:600" id="loginTitle">Sign In</h2>
+        
+        <div class="field">
+          <label>Username</label>
+          <input id="authUser" class="input" placeholder="e.g. alex" autocomplete="username" autocapitalize="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="authPass" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        
+        <button class="btn primary block" id="authBtn">Sign In / Register</button>
+        <p id="authError" style="color:var(--danger);font-size:13px;text-align:center;margin-top:10px;display:none"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section id="scr-home" class="screen">
     <div class="topbar">
       <div class="brand"><span class="logo">◈</span> Meetly</div>
       <div class="spacer"></div>
-      <button class="pill" id="namePill">Guest</button>
+      <button class="pill" id="userPill">User</button>
+      <button class="icon-btn" id="logoutBtn" title="Logout">🚪</button>
     </div>
     <div class="scroll narrow">
       <div class="hero">
         <h1>Hi, <span id="heroName">there</span> 👋</h1>
-        <p class="muted">Start a call, join with a code, or catch up in a text group.</p>
+        <p class="muted">Start a call, chat with friends, or join a group.</p>
       </div>
       <div class="grid">
+        <button class="tile" data-act="friends">
+          <span class="ico">👥</span><b>Friends</b><small>Direct calls & chat</small>
+        </button>
         <button class="tile" data-act="new">
           <span class="ico">🎥</span><b>New Meeting</b><small>Start instantly</small>
         </button>
@@ -405,7 +206,48 @@ h2.sec{
     </div>
   </section>
 
-  <!-- ================= JOIN MEETING ================= -->
+  <!-- FRIENDS -->
+  <section id="scr-friends" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-back="scr-home">←</button>
+      <div class="title">Friends</div>
+    </div>
+    <div class="scroll narrow">
+      <div class="card">
+        <div class="field">
+          <label>Add a friend (enter exact username)</label>
+          <div class="row">
+            <input id="addFriendInput" class="input" placeholder="username" autocomplete="off" autocapitalize="off" />
+            <button class="btn" id="addFriendBtn">Add</button>
+          </div>
+        </div>
+      </div>
+      <h2 class="sec">Your Friends</h2>
+      <div id="friendList" class="list"></div>
+    </div>
+  </section>
+
+  <!-- FRIEND CHAT -->
+  <section id="scr-friend-chat" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-back="scr-friends">←</button>
+      <div class="title-stack">
+        <div class="title" id="fcTitle">Friend</div>
+        <div class="sub" id="fcStatus">Offline</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn small primary" id="fcCallBtn" style="margin-right:8px">📞 Call</button>
+    </div>
+    <div class="msglist" id="fcMsgList"></div>
+    <div class="composer">
+      <button class="icon-btn" id="fcImgBtn">🖼️</button>
+      <input type="file" id="fcImgInput" accept="image/*" style="display:none" />
+      <input id="fcInput" class="input" placeholder="Message…" autocomplete="off" />
+      <button class="btn primary" id="fcSend">Send</button>
+    </div>
+  </section>
+
+  <!-- JOIN MEETING -->
   <section id="scr-join" class="screen">
     <div class="topbar">
       <button class="icon-btn" data-back="scr-home">←</button>
@@ -413,21 +255,13 @@ h2.sec{
     </div>
     <div class="scroll narrow">
       <div class="card">
-        <div class="field">
-          <label>Meeting code</label>
-          <input id="joinCode" class="input" placeholder="abc-def-ghi"
-                 autocomplete="off" autocapitalize="off" spellcheck="false" />
-        </div>
-        <div class="field">
-          <label>Your name</label>
-          <input id="joinName" class="input" autocomplete="name" />
-        </div>
+        <div class="field"><label>Meeting code</label><input id="joinCode" class="input" placeholder="abc-def-ghi" autocomplete="off" autocapitalize="off" spellcheck="false" /></div>
         <button class="btn primary block" id="doJoin">Join meeting</button>
       </div>
     </div>
   </section>
 
-  <!-- ================= SCHEDULE ================= -->
+  <!-- SCHEDULE -->
   <section id="scr-schedule" class="screen">
     <div class="topbar">
       <button class="icon-btn" data-back="scr-home">←</button>
@@ -435,14 +269,8 @@ h2.sec{
     </div>
     <div class="scroll narrow">
       <div class="card">
-        <div class="field">
-          <label>Topic</label>
-          <input id="schTitle" class="input" placeholder="Weekly sync" />
-        </div>
-        <div class="field">
-          <label>When</label>
-          <input id="schWhen" class="input" type="datetime-local" />
-        </div>
+        <div class="field"><label>Topic</label><input id="schTitle" class="input" placeholder="Weekly sync" /></div>
+        <div class="field"><label>When</label><input id="schWhen" class="input" type="datetime-local" /></div>
         <button class="btn primary block" id="schCreate">Create meeting</button>
       </div>
       <h2 class="sec">Scheduled</h2>
@@ -450,7 +278,7 @@ h2.sec{
     </div>
   </section>
 
-  <!-- ================= GROUPS LIST ================= -->
+  <!-- GROUPS LIST -->
   <section id="scr-groups" class="screen">
     <div class="topbar">
       <button class="icon-btn" data-back="scr-home">←</button>
@@ -463,8 +291,7 @@ h2.sec{
         <div class="field">
           <label>Join a group by code</label>
           <div class="row">
-            <input id="grpCode" class="input" placeholder="abc-def-ghi"
-                   autocomplete="off" autocapitalize="off" spellcheck="false" />
+            <input id="grpCode" class="input" placeholder="abc-def-ghi" autocomplete="off" autocapitalize="off" spellcheck="false" />
             <button class="btn" id="joinGroupBtn">Join</button>
           </div>
         </div>
@@ -474,41 +301,35 @@ h2.sec{
     </div>
   </section>
 
-  <!-- ================= GROUP CHAT ================= -->
+  <!-- GROUP CHAT -->
   <section id="scr-group" class="screen">
     <div class="topbar">
       <button class="icon-btn" data-back="scr-groups">←</button>
-      <div class="title-stack">
-        <div class="title" id="gTitle">Group</div>
-        <div class="sub" id="gSub">code</div>
-      </div>
+      <div class="title-stack"><div class="title" id="gTitle">Group</div><div class="sub" id="gSub">code</div></div>
       <div class="spacer"></div>
       <span class="status" id="gStatus">…</span>
     </div>
     <div class="msglist" id="msgList"></div>
     <div class="composer">
+      <button class="icon-btn" id="gImgBtn">🖼️</button>
+      <input type="file" id="gImgInput" accept="image/*" style="display:none" />
       <input id="msgInput" class="input" placeholder="Message…" autocomplete="off" />
       <button class="btn primary" id="sendMsg">Send</button>
     </div>
   </section>
 
-  <!-- ================= MEETING ROOM ================= -->
+  <!-- MEETING ROOM -->
   <section id="scr-meet" class="screen">
     <div class="stage" id="stage">
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
       <div class="stage-overlay" id="stageOverlay">Waiting for someone to join…</div>
-
       <div class="meet-top">
-        <div class="title-stack">
-          <div class="title" id="meetTitle">Meeting</div>
-          <div class="sub" id="meetCode">code</div>
-        </div>
+        <div class="title-stack"><div class="title" id="meetTitle">Meeting</div><div class="sub" id="meetCode">code</div></div>
         <div class="spacer"></div>
         <span class="status" id="meetStatus">…</span>
         <button class="icon-btn" id="meetChatBtn" title="Chat">💬</button>
       </div>
-
       <div class="meet-controls">
         <button class="ctl" id="toggleMic"><span>🎤</span><small>Mute</small></button>
         <button class="ctl" id="toggleCam"><span>📷</span><small>Camera</small></button>
@@ -516,757 +337,776 @@ h2.sec{
         <button class="ctl danger" id="leaveMeet"><span>✖</span><small>Leave</small></button>
       </div>
     </div>
-
     <div class="drawer" id="meetChatDrawer">
-      <div class="drawer-head">
-        Chat
-        <button class="icon-btn" id="closeDrawer">✕</button>
-      </div>
+      <div class="drawer-head">Chat<button class="icon-btn" id="closeDrawer">✕</button></div>
       <div class="msglist" id="meetMsgs"></div>
       <div class="composer">
+        <button class="icon-btn" id="mImgBtn">🖼️</button>
+        <input type="file" id="mImgInput" accept="image/*" style="display:none" />
         <input id="meetInput" class="input" placeholder="Message…" autocomplete="off" />
         <button class="btn primary" id="meetSend">Send</button>
       </div>
     </div>
   </section>
-
-</div>
-
-<div class="modal" id="nameModal">
-  <div class="card">
-    <h2>Your name</h2>
-    <input id="nameInput" class="input" placeholder="e.g. Alex" />
-    <div class="row" style="margin-top:16px">
-      <button class="btn ghost" id="nameCancel" style="flex:1">Cancel</button>
-      <button class="btn primary" id="nameSave" style="flex:1">Save</button>
-    </div>
-    <button class="btn ghost block" id="installBtn" style="margin-top:12px;display:none">
-      ⬇️ Install app
-    </button>
-  </div>
 </div>
 
 <div id="toast"></div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onerror="console.error('PeerJS failed to load')"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onerror="document.getElementById('error-overlay').style.display='block'; document.getElementById('error-overlay').textContent='Failed to load PeerJS from CDN. Check network.'"></script>
 <script>
+window.onerror = function(msg, url, line) {
+  var el = document.getElementById('error-overlay');
+  el.style.display = 'block';
+  el.textContent = 'Error: ' + msg + '\nAt: ' + url + ':' + line;
+  return false;
+};
+
 document.addEventListener('DOMContentLoaded', function() {
-  'use strict';
+  try {
+    'use strict';
 
-  /* =========================================================
-     0. Helpers (Defensive DOM Selectors)
-     ========================================================= */
-  var $ = function (s) { return document.querySelector(s); };
-  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+    /* =========================================================
+       Utils & State
+       ========================================================= */
+    var $ = function (s) { return document.querySelector(s); };
+    var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+    
+    var LS = {
+      get: function (k, d) { try { var v = localStorage.getItem('mc:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+      set: function (k, v) { try { localStorage.setItem('mc:' + k, JSON.stringify(v)); } catch (e) {} },
+      del: function(k) { try { localStorage.removeItem('mc:' + k); } catch (e) {} }
+    };
 
-  var LS = {
-    get: function (k, d) {
-      try { var v = localStorage.getItem('mc:' + k); return v == null ? d : JSON.parse(v); }
-      catch (e) { return d; }
-    },
-    set: function (k, v) { try { localStorage.setItem('mc:' + k, JSON.stringify(v)); } catch (e) {} }
-  };
-
-  var toastTimer;
-  function toast(msg) {
-    var t = $('#toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
-  }
-
-  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-
-  var ALPHA = 'abcdefghijkmnpqrstuvwxyz23456789';
-  function newCode() {
-    var s = '';
-    for (var i = 0; i < 9; i++) s += ALPHA[(Math.random() * ALPHA.length) | 0];
-    return s.slice(0, 3) + '-' + s.slice(3, 6) + '-' + s.slice(6, 9);
-  }
-  function norm(code) { return String(code || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-  function peerId(ns, code) { return 'mc-' + ns + '-' + norm(code); }
-
-  function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-  function fmtWhen(ts) {
-    return new Date(ts).toLocaleString([], {
-      weekday: 'short', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-  }
-
-  /* =========================================================
-     1. Identity
-     ========================================================= */
-  var ME = { name: LS.get('name', '') };
-  if (!ME.name) {
-    ME.name = 'Guest ' + Math.floor(100 + Math.random() * 900);
-    LS.set('name', ME.name);
-  }
-  function renderName() {
-    var el = $('#heroName'); if (el) el.textContent = ME.name.split(' ')[0];
-    el = $('#namePill'); if (el) el.textContent = ME.name;
-    el = $('#joinName'); if (el) el.value = ME.name;
-  }
-
-  /* =========================================================
-     2. Router
-     ========================================================= */
-  function show(id) {
-    $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); });
-  }
-
-  /* =========================================================
-     3. WebRTC — audio-quality tuning
-     ========================================================= */
-  var AUDIO_CONSTRAINTS = {
-    echoCancellation: true, noiseSuppression: true, autoGainControl: true,
-    sampleRate: { ideal: 48000 }, sampleSize: { ideal: 16 }, channelCount: { ideal: 2 },
-    googEchoCancellation: true, googAutoGainControl: true,
-    googNoiseSuppression: true, googHighpassFilter: true, googTypingNoiseDetection: true
-  };
-
-  function tuneOpusSdp(sdp) {
-    if (!sdp) return sdp;
-    return sdp.replace(/a=fmtp:(\d+) useinbandfec=1/gi, function (m, pt) {
-      return 'a=fmtp:' + pt + ' useinbandfec=1;usedtx=0;stereo=1;sprop-stereo=1;' +
-             'maxaveragebitrate=128000;maxplaybackrate=48000;minptime=10';
-    });
-  }
-
-  function tunePc(pc) {
-    if (!pc || pc.__audioTuned) return;
-    pc.__audioTuned = true;
-    var origOffer  = pc.createOffer.bind(pc);
-    var origAnswer = pc.createAnswer.bind(pc);
-    pc.createOffer = function (o) { return origOffer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); };
-    pc.createAnswer = function (o) { return origAnswer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); };
-    try {
-      if (typeof RTCRtpSender !== 'undefined' && typeof RTCRtpSender.getCapabilities === 'function' && pc.getTransceivers) {
-        var caps = RTCRtpSender.getCapabilities('audio');
-        if (caps && caps.codecs) {
-          var opus = caps.codecs.filter(function (c) { return /opus/i.test(c.mimeType); });
-          var rest = caps.codecs.filter(function (c) { return !/opus/i.test(c.mimeType); });
-          pc.getTransceivers().forEach(function (t) {
-            try { t.setCodecPreferences(opus.concat(rest)); } catch (e) {}
-          });
-        }
-      }
-    } catch (e) {}
-  }
-
-  function boostSender(media) {
-    try {
-      var pc = media && (media.peerConnection || media._pc);
-      if (!pc) return;
-      pc.getSenders().forEach(function (s) {
-        if (!s.track || s.track.kind !== 'audio') return;
-        try {
-          var p = s.getParameters();
-          if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-          p.encodings.forEach(function (enc) { enc.maxBitrate = 128000; enc.networkPriority = 'high'; enc.priority = 'high'; });
-          s.setParameters(p).catch(function () {});
-        } catch (e) {}
-      });
-    } catch (e) {}
-  }
-
-  (function installPcHook() {
-    if (typeof RTCPeerConnection === 'undefined') return;
-    var Orig = RTCPeerConnection;
-    function Wrapped(cfg) { var pc = new Orig(cfg); tunePc(pc); return pc; }
-    Wrapped.prototype = Orig.prototype;
-    try { Object.setPrototypeOf(Wrapped, Orig); } catch (e) {}
-    window.RTCPeerConnection = Wrapped;
-  })();
-
-  /* =========================================================
-     4. PeerJS options
-     ========================================================= */
-  var PEER_OPTS = {
-    debug: 0,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' }
-      ],
-      sdpSemantics: 'unified-plan'
+    var toastTimer;
+    function toast(msg) {
+      var t = $('#toast'); if (!t) return;
+      t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
     }
-  };
-  var HAS_PEER = (typeof Peer !== 'undefined');
 
-  /* =========================================================
-     5. MEETING (video + audio call)
-     ========================================================= */
-  var Meet = {
-    peer: null, conn: null, call: null, stream: null, code: '', title: '', host: false, ended: false,
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+    var ALPHA = 'abcdefghijkmnpqrstuvwxyz23456789';
+    function newCode() {
+      var s = '';
+      for (var i = 0; i < 9; i++) s += ALPHA[(Math.random() * ALPHA.length) | 0];
+      return s.slice(0, 3) + '-' + s.slice(3, 6) + '-' + s.slice(6, 9);
+    }
+    function norm(code) { return String(code || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+    function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    function fmtWhen(ts) { return new Date(ts).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    
+    function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
-    join: async function (code, title) {
-      this._cleanup();
-      this.ended = false; this.code = code; this.title = title || 'Meeting';
+    /* =========================================================
+       Auth & Login Logic (Local only)
+       ========================================================= */
+    var ME = { username: '', name: '' };
 
-      var el = $('#meetTitle'); if (el) el.textContent = this.title;
-      el = $('#meetCode'); if (el) el.textContent = code;
-      el = $('#meetMsgs'); if (el) el.innerHTML = '';
-      el = $('#meetChatDrawer'); if (el) el.classList.remove('open');
-      el = $('#remoteVideo'); if (el) el.srcObject = null;
-      el = $('#toggleMic'); if (el) { el.classList.remove('off'); el.querySelector('small').textContent = 'Mute'; }
-      el = $('#toggleCam'); if (el) { el.classList.remove('off'); el.querySelector('small').textContent = 'Camera'; }
+    async function hashPassword(password) {
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function handleAuth() {
+      var user = $('#authUser').value.trim().toLowerCase();
+      var pass = $('#authPass').value;
+      var err = $('#authError');
       
-      this.setStatus('Starting camera…');
-      this.overlay('Starting camera…');
-      show('scr-meet');
+      if (!user || !pass) { err.textContent = 'Enter username and password.'; err.style.display = 'block'; return; }
+      if (user.length < 3) { err.textContent = 'Username must be at least 3 characters.'; err.style.display = 'block'; return; }
+      
+      err.style.display = 'none';
+      var hash = await hashPassword(pass);
+      var accounts = LS.get('accounts', {});
+      
+      if (accounts[user]) {
+        if (accounts[user] !== hash) {
+          err.textContent = 'Incorrect password for this user.'; err.style.display = 'block'; return;
+        }
+      } else {
+        accounts[user] = hash;
+        LS.set('accounts', accounts);
+      }
+      
+      LS.set('session', user);
+      initUser(user);
+    }
 
+    function initUser(user) {
+      ME.username = user;
+      ME.name = user.charAt(0).toUpperCase() + user.slice(1);
+      
+      $('#heroName').textContent = ME.name;
+      $('#userPill').textContent = ME.name;
+      
+      show('scr-home');
+      initMainPeer(); // Initialize main PeerJS connection for this user
+    }
+
+    $('#authBtn').addEventListener('click', handleAuth);
+    $('#authPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
+    
+    $('#logoutBtn').addEventListener('click', function() {
+      if (!confirm('Log out of Meetly?')) return;
+      LS.del('session');
+      location.reload();
+    });
+
+    /* =========================================================
+       WebRTC Audio Tuning
+       ========================================================= */
+    var AUDIO_CONSTRAINTS = {
+      echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+      sampleRate: { ideal: 48000 }, sampleSize: { ideal: 16 }, channelCount: { ideal: 2 },
+      googEchoCancellation: true, googAutoGainControl: true, googNoiseSuppression: true, googHighpassFilter: true, googTypingNoiseDetection: true
+    };
+
+    function tuneOpusSdp(sdp) {
+      if (!sdp) return sdp;
+      return sdp.replace(/a=fmtp:(\d+) useinbandfec=1/gi, function (m, pt) {
+        return 'a=fmtp:' + pt + ' useinbandfec=1;usedtx=0;stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;minptime=10';
+      });
+    }
+
+    function tunePc(pc) {
+      if (!pc || pc.__audioTuned) return;
+      pc.__audioTuned = true;
+      var origOffer  = pc.createOffer.bind(pc), origAnswer = pc.createAnswer.bind(pc);
+      pc.createOffer = function (o) { return origOffer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); };
+      pc.createAnswer = function (o) { return origAnswer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); };
       try {
-        this.stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-          audio: AUDIO_CONSTRAINTS
-        });
-      } catch (e1) {
-        try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS }); toast('Camera unavailable — audio only'); }
-        catch (e2) { this.stream = new MediaStream(); toast('No camera or mic access — you can still chat'); }
-      }
-
-      var at = this.stream.getAudioTracks()[0];
-      if (at && at.applyConstraints) {
-        at.applyConstraints({ sampleRate: 48000, channelCount: 2, echoCancellation: true, noiseSuppression: true, autoGainControl: true }).catch(function () {});
-      }
-      el = $('#localVideo'); if (el) el.srcObject = this.stream;
-
-      if (!HAS_PEER) {
-        this.setStatus('Offline');
-        this.overlay('Signaling library failed to load. Check your connection.');
-        return;
-      }
-
-      this.setStatus('Waiting…');
-      this.overlay('Waiting for someone to join…');
-      this.connectHost();
-    },
-
-    setStatus: function (t) { var el = $('#meetStatus'); if (el) el.textContent = t; },
-    overlay: function (t) { var o = $('#stageOverlay'); if (o) { o.textContent = t; o.style.display = 'flex'; } },
-    hideOverlay: function () { var o = $('#stageOverlay'); if (o) o.style.display = 'none'; },
-
-    connectHost: function () {
-      var self = this;
-      this.peer = new Peer(peerId('mtg', this.code), PEER_OPTS);
-      this.peer.on('open', function () { self.host = true; self.setStatus('Hosting • waiting'); });
-      this.peer.on('connection', function (c) { self.acceptConn(c); });
-      this.peer.on('call', function (incoming) {
-        if (self.call) { try { incoming.close(); } catch (e) {} return; }
-        self.call = incoming;
-        try { incoming.answer(self.stream); } catch (e) { console.warn(e); }
-        self.pipeCall(incoming);
-      });
-      this.peer.on('error', function (err) { self.onError(err); });
-    },
-
-    onError: function (err) {
-      if (this.ended) return;
-      if (err.type === 'unavailable-id') {
-        try { this.peer.destroy(); } catch (e) {}
-        this.peer = null; this.connectGuest();
-      } else if (err.type === 'peer-unavailable') {
-        this.setStatus('Meeting not found'); this.overlay('No meeting found with that code.');
-      } else if (err.type === 'network' || err.type === 'server-error') {
-        this.setStatus('Server unreachable'); this.overlay('Signaling server unreachable. Try again in a moment.');
-      } else {
-        console.warn('[meet]', err.type, err); this.setStatus('Connection error');
-      }
-    },
-
-    connectGuest: function () {
-      var self = this;
-      if (this.ended) return;
-      this.peer = new Peer(PEER_OPTS);
-      this.peer.on('open', function () {
-        self.setStatus('Connecting…');
-        var target = peerId('mtg', self.code);
-        var c = self.peer.connect(target, { reliable: true, metadata: { name: ME.name } });
-        if (c) self.acceptConn(c);
-        try { var media = self.peer.call(target, self.stream); if (media) { self.call = media; self.pipeCall(media); } } catch (e) { console.warn(e); }
-      });
-      this.peer.on('error', function (err) { self.onError(err); });
-    },
-
-    acceptConn: function (c) {
-      var self = this;
-      if (this.conn && this.conn.open) {
-        c.on('open', function () { try { c.send({ type: 'busy' }); } catch (e) {} setTimeout(function () { try { c.close(); } catch (e) {} }, 300); });
-        return;
-      }
-      this.conn = c;
-      c.on('open', function () {
-        self.setStatus('Connected'); self.hideOverlay(); self.addMsg('You joined the meeting.', 'sys');
-        try { c.send({ type: 'hello', name: ME.name }); } catch (e) {}
-      });
-      c.on('data', function (d) {
-        if (!d || typeof d !== 'object') return;
-        if (d.type === 'chat') self.addMsg(d.text, d.name === ME.name ? 'me' : 'them', d.name);
-        else if (d.type === 'hello') self.addMsg((d.name || 'Someone') + ' joined', 'sys');
-        else if (d.type === 'busy') { self.setStatus('Meeting full'); self.overlay('This meeting already has two participants (1-on-1).'); }
-      });
-      c.on('close', function () {
-        self.conn = null; self.setStatus('Disconnected');
-        var el = $('#remoteVideo'); if (el) el.srcObject = null;
-        self.overlay('Participant left. Waiting…'); self.addMsg('Participant left.', 'sys');
-      });
-      c.on('error', function () {});
-    },
-
-    pipeCall: function (media) {
-      var self = this;
-      boostSender(media);
-      media.on('stream', function (s) {
-        boostSender(media);
-        var el = $('#remoteVideo'); if (el) el.srcObject = s;
-        self.hideOverlay(); self.setStatus('Connected • HD audio');
-      });
-      media.on('close', function () {
-        var el = $('#remoteVideo'); if (el) el.srcObject = null;
-        self.overlay('Participant left. Waiting…');
-      });
-    },
-
-    addMsg: function (text, kind, name) {
-      var list = $('#meetMsgs'); if (!list) return;
-      var d = document.createElement('div');
-      d.className = 'bubble ' + (kind || '');
-      d.textContent = (kind === 'them' && name ? name + ': ' : '') + text;
-      list.appendChild(d); list.scrollTop = list.scrollHeight;
-    },
-
-    send: function (text) {
-      if (!this.conn || !this.conn.open) { toast('Not connected yet'); return; }
-      try { this.conn.send({ type: 'chat', text: text, name: ME.name }); } catch (e) {}
-      this.addMsg(text, 'me');
-    },
-
-    toggleMic: function () {
-      if (!this.stream) return;
-      var t = this.stream.getAudioTracks()[0]; if (!t) return;
-      t.enabled = !t.enabled;
-      var btn = $('#toggleMic'); if (btn) { btn.classList.toggle('off', !t.enabled); btn.querySelector('small').textContent = t.enabled ? 'Mute' : 'Unmute'; }
-    },
-
-    toggleCam: function () {
-      if (!this.stream) return;
-      var t = this.stream.getVideoTracks()[0]; if (!t) return;
-      t.enabled = !t.enabled;
-      var btn = $('#toggleCam'); if (btn) { btn.classList.toggle('off', !t.enabled); btn.querySelector('small').textContent = t.enabled ? 'Camera' : 'Start cam'; }
-    },
-
-    leave: function () {
-      this.ended = true; this._cleanup(); show('scr-home'); renderUpcoming();
-      try { history.replaceState(null, '', location.pathname); } catch (e) {}
-    },
-
-    _cleanup: function () {
-      if (this.conn) { try { this.conn.close(); } catch (e) {} this.conn = null; }
-      if (this.call) { try { this.call.close(); } catch (e) {} this.call = null; }
-      if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
-      if (this.stream) { this.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); this.stream = null; }
-      var el = $('#remoteVideo'); if (el) el.srcObject = null;
-      el = $('#localVideo'); if (el) el.srcObject = null;
-      this.host = false;
+        if (typeof RTCRtpSender !== 'undefined' && typeof RTCRtpSender.getCapabilities === 'function' && pc.getTransceivers) {
+          var caps = RTCRtpSender.getCapabilities('audio');
+          if (caps && caps.codecs) {
+            var opus = caps.codecs.filter(function (c) { return /opus/i.test(c.mimeType); });
+            var rest = caps.codecs.filter(function (c) { return !/opus/i.test(c.mimeType); });
+            pc.getTransceivers().forEach(function (t) { try { t.setCodecPreferences(opus.concat(rest)); } catch (e) {} });
+          }
+        }
+      } catch (e) {}
     }
-  };
 
-  /* =========================================================
-     6. TEXT GROUPS
-     ========================================================= */
-  var groups = LS.get('groups', []);
+    function boostSender(media) {
+      try {
+        var pc = media && (media.peerConnection || media._pc); if (!pc) return;
+        pc.getSenders().forEach(function (s) {
+          if (!s.track || s.track.kind !== 'audio') return;
+          try {
+            var p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+            p.encodings.forEach(function (enc) { enc.maxBitrate = 128000; enc.networkPriority = 'high'; enc.priority = 'high'; });
+            s.setParameters(p).catch(function () {});
+          } catch (e) {}
+        });
+      } catch (e) {}
+    }
 
-  var Group = {
-    peer: null, code: '', name: '', conns: [], host: false, msgs: [], tries: 0, closed: false,
+    (function installPcHook() {
+      if (typeof RTCPeerConnection === 'undefined') return;
+      var Orig = RTCPeerConnection;
+      function Wrapped(cfg) { var pc = new Orig(cfg); tunePc(pc); return pc; }
+      Wrapped.prototype = Orig.prototype;
+      try { Object.setPrototypeOf(Wrapped, Orig); } catch (e) {}
+      window.RTCPeerConnection = Wrapped;
+    })();
 
-    open: async function (code, name) {
-      this.close();
-      this.closed = false; this.tries = 0; this.code = code; this.name = name || ('Group ' + code);
-      this.msgs = LS.get('msgs:' + norm(code), []);
+    var PEER_OPTS = {
+      debug: 0,
+      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }], sdpSemantics: 'unified-plan' }
+    };
 
-      var el = $('#gTitle'); if (el) el.textContent = this.name;
-      el = $('#gSub'); if (el) el.textContent = code;
-      el = $('#msgInput'); if (el) el.value = '';
+    /* =========================================================
+       Main User Peer (Presence & Friend DMs)
+       ========================================================= */
+    var mainPeer = null;
+    var friendConns = {}; // { username: conn }
+    
+    function initMainPeer() {
+      if (mainPeer) mainPeer.destroy();
+      mainPeer = new Peer('mc-user-' + ME.username, PEER_OPTS);
       
-      this.renderAll(); this.setStatus('Connecting…', 'warn'); show('scr-group');
-
-      if (!groups.some(function (g) { return norm(g.code) === norm(code); })) {
-        groups.unshift({ code: code, name: this.name, ts: Date.now() }); LS.set('groups', groups);
-      }
-
-      if (!HAS_PEER) { this.setStatus('Offline • saved locally', 'warn'); return; }
-      this.connectHost();
-    },
-
-    setStatus: function (t, cls) { var s = $('#gStatus'); if (s) { s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); } },
-
-    connectHost: function () {
-      var self = this;
-      if (this.closed) return;
-      this.peer = new Peer(peerId('grp', this.code), PEER_OPTS);
-      this.peer.on('open', function () { self.host = true; self.setStatus('Online • host', 'ok'); });
-      this.peer.on('connection', function (c) { self.accept(c); });
-      this.peer.on('error', function (e) {
-        if (e.type === 'unavailable-id') { try { self.peer.destroy(); } catch (_) {} self.peer = null; self.connectGuest(); }
-        else if (e.type === 'network' || e.type === 'server-error') { self.setStatus('Offline • saved locally', 'warn'); }
+      mainPeer.on('open', function() {
+        updateFriendsStatus();
       });
-    },
-
-    connectGuest: function () {
-      var self = this;
-      if (this.closed) return;
-      this.peer = new Peer(PEER_OPTS);
-      this.peer.on('open', function () {
-        var c = self.peer.connect(peerId('grp', self.code), { reliable: true });
-        if (!c) { self.setStatus('Offline • saved locally', 'warn'); return; }
-        self.accept(c);
+      
+      mainPeer.on('connection', function(c) {
+        // Incoming friend connection
+        c.on('data', function(d) {
+          if (d.type === 'friend-msg') {
+            saveFriendMessage(c.peer.replace('mc-user-', ''), d);
+            renderFriendChat(c.peer.replace('mc-user-', ''));
+          } else if (d.type === 'ping') {
+            c.send({ type: 'pong' });
+          }
+        });
+        c.on('close', function() {
+          var uname = c.peer.replace('mc-user-', '');
+          delete friendConns[uname];
+          updateFriendsStatus();
+        });
       });
-      this.peer.on('error', function (e) {
-        if (e.type === 'peer-unavailable') {
-          try { self.peer.destroy(); } catch (_) {} self.peer = null;
-          if (self.tries++ < 3) setTimeout(function () { self.connectHost(); }, 800);
-          else self.setStatus('Offline • saved locally', 'warn');
+      
+      mainPeer.on('call', function(incoming) {
+        // Friend calling us directly
+        if (confirm('Incoming call from ' + incoming.peer.replace('mc-user-', '') + '. Accept?')) {
+          Meet.acceptDirectCall(incoming);
+        } else {
+          incoming.close();
         }
       });
-    },
+    }
 
-    accept: function (c) {
-      var self = this;
-      this.conns.push(c);
-      c.on('open', function () {
-        self.setStatus(self.host ? 'Online • host' : 'Online', 'ok');
-        try { c.send({ type: 'hello', name: ME.name }); } catch (e) {}
-        if (!self.host) { try { c.send({ type: 'history-req' }); } catch (e) {} }
+    function connectToFriend(username) {
+      if (friendConns[username] && friendConns[username].open) return friendConns[username];
+      var c = mainPeer.connect('mc-user-' + username, { reliable: true });
+      friendConns[username] = c;
+      
+      c.on('open', function() {
+        c.send({ type: 'ping' });
+        updateFriendsStatus();
       });
-      c.on('data', function (d) { self.onData(d, c); });
-      c.on('close', function () {
-        self.conns = self.conns.filter(function (x) { return x !== c; });
-        if (!self.host && self.conns.length === 0) self.setStatus('Offline • saved locally', 'warn');
+      c.on('data', function(d) {
+        if (d.type === 'friend-msg') {
+          saveFriendMessage(username, d);
+          renderFriendChat(username);
+        }
       });
-      c.on('error', function () {});
-    },
+      c.on('close', function() {
+        delete friendConns[username];
+        updateFriendsStatus();
+      });
+      c.on('error', function() {
+        delete friendConns[username];
+        updateFriendsStatus();
+      });
+      return c;
+    }
 
-    onData: function (d, from) {
-      if (!d || typeof d !== 'object') return;
-      if (d.type === 'hello' || d.type === 'history-req') {
-        if (this.host) { try { from.send({ type: 'history', msgs: this.msgs.slice(-120) }); } catch (e) {} }
-      } else if (d.type === 'history') {
-        if (Array.isArray(d.msgs)) { var self = this; d.msgs.forEach(function (m) { self.addMsg(m); }); }
-      } else if (d.type === 'msg') {
-        this.addMsg(d.msg);
-        if (this.host) this.broadcast(d.msg, from);
-      }
-    },
+    function updateFriendsStatus() {
+      var friends = LS.get('friends', []);
+      friends.forEach(function(f) {
+        var isOnline = friendConns[f.username] && friendConns[f.username].open;
+        var els = document.querySelectorAll('.friend-status-' + f.username);
+        els.forEach(function(el) {
+          el.textContent = isOnline ? '🟢 Online' : '⚪ Offline';
+          el.style.color = isOnline ? 'var(--ok)' : 'var(--muted)';
+        });
+      });
+    }
 
-    addMsg: function (m) {
-      if (!m || !m.id) return;
-      for (var i = 0; i < this.msgs.length; i++) if (this.msgs[i].id === m.id) return;
-      this.msgs.push(m); this.msgs.sort(function (a, b) { return a.ts - b.ts; });
-      if (this.msgs.length > 400) this.msgs = this.msgs.slice(-400);
-      LS.set('msgs:' + norm(this.code), this.msgs); this.appendBubble(m);
-    },
-
-    send: function (text) {
-      if (!text) return;
-      var m = { id: uid(), name: ME.name, text: text, ts: Date.now() };
-      this.addMsg(m); this.broadcast(m, null);
-    },
-
-    broadcast: function (m, except) {
-      for (var i = 0; i < this.conns.length; i++) {
-        var c = this.conns[i];
-        if (c === except || !c.open) continue;
-        try { c.send({ type: 'msg', msg: m }); } catch (e) {}
-      }
-    },
-
-    renderAll: function () {
-      var box = $('#msgList'); if (!box) return;
+    /* =========================================================
+       Friends Logic
+       ========================================================= */
+    function renderFriends() {
+      var box = $('#friendList'); if (!box) return;
+      var friends = LS.get('friends', []);
       box.innerHTML = '';
-      if (this.msgs.length === 0) {
-        var e = document.createElement('div'); e.className = 'bubble sys'; e.textContent = 'No messages yet — say hi 👋'; box.appendChild(e);
-      } else {
-        for (var i = 0; i < this.msgs.length; i++) this.appendBubble(this.msgs[i]);
+      if (friends.length === 0) {
+        box.innerHTML = '<div class="empty">No friends yet. Add someone by their username.</div>';
+        return;
       }
-    },
-
-    appendBubble: function (m) {
-      var box = $('#msgList'); if (!box) return;
-      var isMe = (m.name === ME.name);
-      var wrap = document.createElement('div'); wrap.className = 'bubble ' + (isMe ? 'me' : 'them');
-      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = (isMe ? 'You' : m.name) + ' · ' + fmtTime(m.ts);
-      var body = document.createElement('div'); body.textContent = m.text;
-      wrap.appendChild(meta); wrap.appendChild(body); box.appendChild(wrap); box.scrollTop = box.scrollHeight;
-    },
-
-    close: function () {
-      this.closed = true;
-      this.conns.forEach(function (c) { try { c.close(); } catch (e) {} });
-      this.conns = [];
-      if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
-      this.host = false;
-    }
-  };
-
-  /* =========================================================
-     7. SCHEDULE
-     ========================================================= */
-  var schedule = LS.get('schedule', []);
-
-  function addScheduled(title, whenMs) {
-    var item = { id: uid(), title: title, code: newCode(), when: whenMs, ts: Date.now() };
-    schedule.push(item); schedule.sort(function (a, b) { return a.when - b.when; });
-    LS.set('schedule', schedule); return item;
-  }
-
-  function renderUpcoming() {
-    var box = $('#upcomingList'); if (!box) return;
-    var now = Date.now();
-    var next = schedule.filter(function (s) { return s.when + 3600e3 > now; }).slice(0, 3);
-    box.innerHTML = '';
-    if (next.length === 0) {
-      var e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Nothing scheduled yet. Tap “Schedule” to plan a meeting.'; box.appendChild(e); return;
-    }
-    next.forEach(function (s) { box.appendChild(scheduleItem(s, false)); });
-  }
-
-  function renderSchedule() {
-    var box = $('#schList'); if (!box) return;
-    box.innerHTML = '';
-    if (schedule.length === 0) {
-      var e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No meetings scheduled.'; box.appendChild(e); return;
-    }
-    schedule.forEach(function (s) { box.appendChild(scheduleItem(s, true)); });
-  }
-
-  function scheduleItem(s, withDelete) {
-    var el = document.createElement('div'); el.className = 'item';
-    var grow = document.createElement('div'); grow.className = 'grow';
-    var t = document.createElement('div'); t.className = 't'; t.textContent = s.title || 'Meeting';
-    var sub = document.createElement('div'); sub.className = 's'; sub.textContent = fmtWhen(s.when) + ' · ' + s.code;
-    grow.appendChild(t); grow.appendChild(sub);
-
-    var join = document.createElement('button'); join.className = 'btn small primary'; join.textContent = 'Join';
-    join.addEventListener('click', function () { Meet.join(s.code, s.title || 'Meeting'); });
-
-    var copy = document.createElement('button'); copy.className = 'icon-btn'; copy.textContent = '🔗'; copy.title = 'Copy invite';
-    copy.addEventListener('click', function () { copyText(inviteLink('m', s.code)); });
-
-    el.appendChild(grow); el.appendChild(join); el.appendChild(copy);
-
-    if (withDelete) {
-      var del = document.createElement('button'); del.className = 'icon-btn'; del.textContent = '🗑'; del.title = 'Remove';
-      del.addEventListener('click', function () {
-        schedule = schedule.filter(function (x) { return x.id !== s.id; });
-        LS.set('schedule', schedule); renderSchedule(); renderUpcoming();
+      
+      friends.forEach(function(f) {
+        var el = document.createElement('div'); el.className = 'item';
+        var grow = document.createElement('div'); grow.className = 'grow';
+        var t = document.createElement('div'); t.className = 't'; t.textContent = f.username;
+        var sub = document.createElement('div'); sub.className = 's friend-status-' + f.username; sub.textContent = '⚪ Offline';
+        grow.appendChild(t); grow.appendChild(sub);
+        
+        var chatBtn = document.createElement('button'); chatBtn.className = 'btn small primary'; chatBtn.textContent = 'Chat';
+        chatBtn.addEventListener('click', function() {
+          openFriendChat(f.username);
+          connectToFriend(f.username);
+        });
+        
+        var delBtn = document.createElement('button'); delBtn.className = 'icon-btn'; delBtn.textContent = '🗑';
+        delBtn.addEventListener('click', function() {
+          if (!confirm('Remove friend?')) return;
+          var fw = LS.get('friends', []).filter(function(x){ return x.username !== f.username; });
+          LS.set('friends', fw);
+          renderFriends();
+        });
+        
+        el.appendChild(grow); el.appendChild(chatBtn); el.appendChild(delBtn);
+        box.appendChild(el);
       });
-      el.appendChild(del);
+      updateFriendsStatus();
     }
-    return el;
-  }
 
-  /* =========================================================
-     8. GROUPS LIST
-     ========================================================= */
-  function renderGroups() {
-    var box = $('#groupList'); if (!box) return;
-    box.innerHTML = '';
-    if (groups.length === 0) {
-      var e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No groups yet. Create one or join with a code.'; box.appendChild(e); return;
-    }
-    groups.forEach(function (g) {
-      var el = document.createElement('div'); el.className = 'item';
-      var grow = document.createElement('div'); grow.className = 'grow';
-      var t = document.createElement('div'); t.className = 't'; t.textContent = g.name || g.code;
-      var sub = document.createElement('div'); sub.className = 's'; sub.textContent = g.code;
-      grow.appendChild(t); grow.appendChild(sub);
-
-      var open = document.createElement('button'); open.className = 'btn small primary'; open.textContent = 'Open';
-      open.addEventListener('click', function () { Group.open(g.code, g.name); });
-
-      var del = document.createElement('button'); del.className = 'icon-btn'; del.textContent = '🗑'; del.title = 'Leave group';
-      del.addEventListener('click', function () {
-        if (!confirm('Remove "' + (g.name || g.code) + '" from your list?\n\nLocal messages will also be cleared.')) return;
-        groups = groups.filter(function (x) { return norm(x.code) !== norm(g.code); });
-        LS.set('groups', groups);
-        try { localStorage.removeItem('mc:msgs:' + norm(g.code)); } catch (e) {}
-        renderGroups();
-      });
-
-      el.appendChild(grow); el.appendChild(open); el.appendChild(del); box.appendChild(el);
+    $('#addFriendBtn').addEventListener('click', function() {
+      var uname = $('#addFriendInput').value.trim().toLowerCase();
+      if (!uname || uname === ME.username) { toast('Invalid username'); return; }
+      var friends = LS.get('friends', []);
+      if (friends.some(function(f){ return f.username === uname; })) { toast('Already in friend list'); return; }
+      
+      friends.push({ username: uname });
+      LS.set('friends', friends);
+      $('#addFriendInput').value = '';
+      renderFriends();
+      connectToFriend(uname);
+      toast('Friend added. Try sending a message.');
     });
-  }
 
-  /* =========================================================
-     9. Misc helpers
-     ========================================================= */
-  function inviteLink(kind, code) {
-    var base = location.origin + location.pathname;
-    if (location.protocol === 'file:') base = location.href.split('#')[0];
-    return base + '#' + kind + '=' + code;
-  }
+    /* =========================================================
+       Friend Chat Logic
+       ========================================================= */
+    var currentFriend = '';
+    
+    function openFriendChat(username) {
+      currentFriend = username;
+      $('#fcTitle').textContent = username;
+      $('#fcInput').value = '';
+      renderFriendChat(username);
+      show('scr-friend-chat');
+      connectToFriend(username);
+    }
 
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast('Copied: ' + text); }).catch(function () { fallbackCopy(text); });
-    } else { fallbackCopy(text); }
-  }
-  function fallbackCopy(text) {
-    var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.top = '-1000px';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); toast('Copied'); } catch (e) { toast(text); }
-    document.body.removeChild(ta);
-  }
+    function saveFriendMessage(username, msg) {
+      var key = 'fc:' + [ME.username, username].sort().join('-');
+      var msgs = LS.get(key, []);
+      if (!msgs.some(function(m){ return m.id === msg.id; })) {
+        msgs.push(msg);
+        LS.set(key, msgs);
+      }
+    }
 
-  /* =========================================================
-     10. Wire up the UI
-     ========================================================= */
-  renderName(); renderUpcoming(); renderSchedule(); renderGroups();
+    function renderFriendChat(username) {
+      if (currentFriend !== username) return;
+      var box = $('#fcMsgList'); if (!box) return;
+      var key = 'fc:' + [ME.username, username].sort().join('-');
+      var msgs = LS.get(key, []);
+      
+      box.innerHTML = '';
+      if (msgs.length === 0) {
+        box.innerHTML = '<div class="bubble sys">Say hi to ' + username + '!</div>';
+        return;
+      }
+      msgs.forEach(function(m) { appendBubble(box, m, ME.username); });
+    }
 
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-back]'); if (!b) return;
-    var dest = b.getAttribute('data-back') || 'scr-home';
-    if (dest === 'scr-groups') { Group.close(); renderGroups(); }
-    show(dest);
-  });
+    function sendFriendMsg() {
+      var inp = $('#fcInput'); var v = inp.value.trim();
+      if (!v) return;
+      
+      var msg = { id: uid(), type: 'friend-msg', sender: ME.username, text: v, ts: Date.now() };
+      saveFriendMessage(currentFriend, msg);
+      renderFriendChat(currentFriend);
+      
+      var c = connectToFriend(currentFriend);
+      if (c && c.open) {
+        c.send(msg);
+      } else {
+        toast('Friend is offline. Message saved locally.');
+      }
+      inp.value = '';
+    }
 
-  var home = $('#scr-home');
-  if (home) {
-    home.addEventListener('click', function (e) {
+    $('#fcSend').addEventListener('click', sendFriendMsg);
+    $('#fcInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendFriendMsg(); });
+    
+    $('#fcCallBtn').addEventListener('click', function() {
+      if (!currentFriend) return;
+      var c = connectToFriend(currentFriend);
+      if (!c || !c.open) { toast(currentFriend + ' is offline.'); return; }
+      
+      // Start a direct meeting using the friend's user ID
+      Meet.joinDirect(currentFriend);
+    });
+
+    /* =========================================================
+       Image Upload Handling
+       ========================================================= */
+    function setupImageUpload(btnId, inputId, callback) {
+      var btn = $('#' + btnId), input = $('#' + inputId);
+      if (!btn || !input) return;
+      btn.addEventListener('click', function() { input.click(); });
+      input.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2MB'); return; }
+        
+        var reader = new FileReader();
+        reader.onload = function(ev) { callback(ev.target.result); input.value = ''; };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /* =========================================================
+       Group Chat Logic
+       ========================================================= */
+    var Group = {
+      peer: null, code: '', name: '', conns: [], host: false, msgs: [], tries: 0, closed: false,
+      
+      open: async function (code, name) {
+        this.close();
+        this.closed = false; this.tries = 0; this.code = code; this.name = name || ('Group ' + code);
+        this.msgs = LS.get('msgs:' + norm(code), []);
+        
+        $('#gTitle').textContent = this.name;
+        $('#gSub').textContent = code;
+        $('#msgInput').value = '';
+        
+        this.renderAll(); this.setStatus('Connecting…', 'warn'); show('scr-group');
+        
+        var groups = LS.get('groups', []);
+        if (!groups.some(function (g) { return norm(g.code) === norm(code); })) {
+          groups.unshift({ code: code, name: this.name, ts: Date.now() }); LS.set('groups', groups);
+        }
+        
+        this.connectHost();
+      },
+      
+      setStatus: function (t, cls) { var s = $('#gStatus'); if (s) { s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); } },
+      
+      connectHost: function () {
+        var self = this;
+        if (this.closed) return;
+        this.peer = new Peer('mc-grp-' + norm(this.code), PEER_OPTS);
+        this.peer.on('open', function () { self.host = true; self.setStatus('Online • host', 'ok'); });
+        this.peer.on('connection', function (c) { self.accept(c); });
+        this.peer.on('error', function (e) {
+          if (e.type === 'unavailable-id') { try { self.peer.destroy(); } catch (_) {} self.peer = null; self.connectGuest(); }
+        });
+      },
+      
+      connectGuest: function () {
+        var self = this;
+        if (this.closed) return;
+        this.peer = new Peer(PEER_OPTS);
+        this.peer.on('open', function () {
+          var c = self.peer.connect('mc-grp-' + norm(self.code), { reliable: true });
+          if (c) self.accept(c);
+        });
+        this.peer.on('error', function (e) {
+          if (e.type === 'peer-unavailable') {
+            try { self.peer.destroy(); } catch (_) {} self.peer = null;
+            if (self.tries++ < 3) setTimeout(function () { self.connectHost(); }, 800);
+            else self.setStatus('Offline • saved locally', 'warn');
+          }
+        });
+      },
+      
+      accept: function (c) {
+        var self = this;
+        this.conns.push(c);
+        c.on('open', function () {
+          self.setStatus(self.host ? 'Online • host' : 'Online', 'ok');
+          if (!self.host) { try { c.send({ type: 'history-req' }); } catch (e) {} }
+        });
+        c.on('data', function (d) { self.onData(d, c); });
+        c.on('close', function () {
+          self.conns = self.conns.filter(function (x) { return x !== c; });
+        });
+      },
+      
+      onData: function (d, from) {
+        if (!d || typeof d !== 'object') return;
+        if (d.type === 'history-req') {
+          if (this.host) { try { from.send({ type: 'history', msgs: this.msgs.slice(-50) }); } catch (e) {} }
+        } else if (d.type === 'history') {
+          if (Array.isArray(d.msgs)) { var self = this; d.msgs.forEach(function (m) { self.addMsg(m); }); }
+        } else if (d.type === 'msg') {
+          this.addMsg(d.msg);
+          if (this.host) this.broadcast(d.msg, from);
+        }
+      },
+      
+      addMsg: function (m) {
+        if (!m || !m.id) return;
+        for (var i = 0; i < this.msgs.length; i++) if (this.msgs[i].id === m.id) return;
+        this.msgs.push(m); this.msgs.sort(function (a, b) { return a.ts - b.ts; });
+        LS.set('msgs:' + norm(this.code), this.msgs); 
+        appendBubble($('#msgList'), m, ME.username);
+      },
+      
+      send: function (text, imgData) {
+        var m = { id: uid(), sender: ME.username, text: text || '', img: imgData || null, ts: Date.now() };
+        this.addMsg(m); 
+        this.broadcast(m, null);
+      },
+      
+      broadcast: function (m, except) {
+        for (var i = 0; i < this.conns.length; i++) {
+          var c = this.conns[i];
+          if (c === except || !c.open) continue;
+          try { c.send({ type: 'msg', msg: m }); } catch (e) {}
+        }
+      },
+      
+      renderAll: function () {
+        var box = $('#msgList'); if (!box) return;
+        box.innerHTML = '';
+        if (this.msgs.length === 0) {
+          box.innerHTML = '<div class="bubble sys">No messages yet — say hi 👋</div>';
+        } else {
+          for (var i = 0; i < this.msgs.length; i++) appendBubble(box, this.msgs[i], ME.username);
+        }
+      },
+      
+      close: function () {
+        this.closed = true;
+        this.conns.forEach(function (c) { try { c.close(); } catch (e) {} });
+        this.conns = []; if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
+        this.host = false;
+      }
+    };
+
+    function appendBubble(container, m, myUsername) {
+      if (!container) return;
+      var isMe = (m.sender === myUsername);
+      var wrap = document.createElement('div'); wrap.className = 'bubble ' + (isMe ? 'me' : 'them');
+      
+      var meta = document.createElement('div'); meta.className = 'meta'; 
+      meta.textContent = (isMe ? 'You' : m.sender) + ' · ' + fmtTime(m.ts);
+      
+      var body = document.createElement('div');
+      if (m.text) { body.textContent = m.text; }
+      if (m.img) {
+        var img = document.createElement('img'); img.src = m.img; 
+        img.onclick = function() { window.open(m.img, '_blank'); };
+        body.appendChild(img);
+      }
+      
+      wrap.appendChild(meta); wrap.appendChild(body); 
+      container.appendChild(wrap); container.scrollTop = container.scrollHeight;
+    }
+
+    /* =========================================================
+       Meeting Logic
+       ========================================================= */
+    var Meet = {
+      peer: null, conn: null, call: null, stream: null, code: '', title: '', host: false, ended: false, isDirect: false,
+
+      join: async function (code, title) {
+        this.isDirect = false;
+        this._cleanup();
+        this.ended = false; this.code = code; this.title = title || 'Meeting';
+        
+        $('#meetTitle').textContent = this.title;
+        $('#meetCode').textContent = code;
+        $('#meetMsgs').innerHTML = '';
+        $('#meetChatDrawer').classList.remove('open');
+        $('#remoteVideo').srcObject = null;
+        
+        this.setStatus('Starting camera…'); this.overlay('Starting camera…'); show('scr-meet');
+        await this._getMedia();
+        
+        this.setStatus('Waiting…'); this.overlay('Waiting for someone to join…'); 
+        
+        this.peer = new Peer('mc-mtg-' + norm(code), PEER_OPTS);
+        this.peer.on('open', function () { this.host = true; Meet.setStatus('Hosting • waiting'); }.bind(this));
+        this.peer.on('connection', function (c) { Meet.acceptConn(c); });
+        this.peer.on('call', function (incoming) {
+          if (Meet.call) { try { incoming.close(); } catch (e) {} return; }
+          Meet.call = incoming; try { incoming.answer(Meet.stream); } catch (e) { console.warn(e); }
+          Meet.pipeCall(incoming);
+        });
+        this.peer.on('error', function (err) {
+          if (err.type === 'unavailable-id') {
+            try { this.peer.destroy(); } catch (e) {} this.peer = null; 
+            Meet.connectGuest('mc-mtg-' + norm(code));
+          }
+        }.bind(this));
+      },
+
+      joinDirect: async function (friendUsername) {
+        this.isDirect = true;
+        this._cleanup();
+        this.ended = false; this.code = friendUsername; this.title = friendUsername;
+        
+        $('#meetTitle').textContent = 'Call with ' + friendUsername;
+        $('#meetCode').textContent = 'Direct';
+        $('#meetMsgs').innerHTML = '';
+        $('#meetChatDrawer').classList.remove('open');
+        $('#remoteVideo').srcObject = null;
+        
+        this.setStatus('Calling…'); this.overlay('Calling ' + friendUsername + '…'); show('scr-meet');
+        await this._getMedia();
+        
+        var media = mainPeer.call('mc-user-' + friendUsername, this.stream);
+        if (!media) { toast('Call failed'); this.leave(); return; }
+        this.call = media; this.pipeCall(media);
+      },
+
+      acceptDirectCall: async function (incoming) {
+        this.isDirect = true;
+        this._cleanup();
+        this.ended = false; this.code = incoming.peer.replace('mc-user-', ''); this.title = this.code;
+        
+        $('#meetTitle').textContent = 'Call with ' + this.code;
+        $('#meetCode').textContent = 'Direct';
+        $('#meetMsgs').innerHTML = '';
+        show('scr-meet');
+        
+        this.setStatus('Connecting…'); this.overlay('Connecting…');
+        await this._getMedia();
+        
+        this.call = incoming; 
+        try { incoming.answer(this.stream); } catch(e){}
+        this.pipeCall(incoming);
+      },
+
+      _getMedia: async function() {
+        try {
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: AUDIO_CONSTRAINTS
+          });
+        } catch (e1) {
+          try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS }); toast('Audio only'); }
+          catch (e2) { this.stream = new MediaStream(); toast('No mic/cam access'); }
+        }
+        $('#localVideo').srcObject = this.stream;
+      },
+
+      connectGuest: function (targetId) {
+        this.peer = new Peer(PEER_OPTS);
+        this.peer.on('open', function () {
+          Meet.setStatus('Connecting…');
+          var c = Meet.peer.connect(targetId, { reliable: true });
+          if (c) Meet.acceptConn(c);
+          try { var media = Meet.peer.call(targetId, Meet.stream); if (media) { Meet.call = media; Meet.pipeCall(media); } } catch (e) {}
+        });
+        this.peer.on('error', function (err) {
+          if (err.type === 'peer-unavailable') { Meet.setStatus('Not found'); Meet.overlay('Meeting not found.'); }
+        });
+      },
+
+      acceptConn: function (c) {
+        var self = this;
+        if (this.conn && this.conn.open) { c.on('open', function () { c.send({ type: 'busy' }); c.close(); }); return; }
+        this.conn = c;
+        c.on('open', function () { self.setStatus('Connected'); self.hideOverlay(); });
+        c.on('data', function (d) {
+          if (!d || typeof d !== 'object') return;
+          if (d.type === 'chat') appendBubble($('#meetMsgs'), { id: uid(), sender: d.sender, text: d.text, img: d.img, ts: Date.now() }, ME.username);
+        });
+        c.on('close', function () { self.conn = null; self.setStatus('Disconnected'); $('#remoteVideo').srcObject = null; self.overlay('Participant left.'); });
+      },
+
+      pipeCall: function (media) {
+        var self = this;
+        boostSender(media);
+        media.on('stream', function (s) {
+          boostSender(media); $('#remoteVideo').srcObject = s; self.hideOverlay(); self.setStatus('Connected • HD audio');
+        });
+        media.on('close', function () { $('#remoteVideo').srcObject = null; self.overlay('Call ended.'); });
+      },
+
+      setStatus: function (t) { $('#meetStatus').textContent = t; },
+      overlay: function (t) { var o = $('#stageOverlay'); if (o) { o.textContent = t; o.style.display = 'flex'; } },
+      hideOverlay: function () { var o = $('#stageOverlay'); if (o) o.style.display = 'none'; },
+
+      send: function (text, imgData) {
+        if (this.conn && this.conn.open) {
+          this.conn.send({ type: 'chat', text: text || '', img: imgData || null, sender: ME.username });
+        }
+        appendBubble($('#meetMsgs'), { id: uid(), sender: ME.username, text: text, img: imgData, ts: Date.now() }, ME.username);
+      },
+
+      toggleMic: function () { if (!this.stream) return; var t = this.stream.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleMic').classList.toggle('off', !t.enabled); } },
+      toggleCam: function () { if (!this.stream) return; var t = this.stream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleCam').classList.toggle('off', !t.enabled); } },
+
+      leave: function () {
+        this.ended = true; this._cleanup(); show('scr-home');
+      },
+
+      _cleanup: function () {
+        if (this.conn) { try { this.conn.close(); } catch (e) {} this.conn = null; }
+        if (this.call) { try { this.call.close(); } catch (e) {} this.call = null; }
+        if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
+        if (this.stream) { this.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); this.stream = null; }
+        $('#remoteVideo').srcObject = null; $('#localVideo').srcObject = null;
+      }
+    };
+
+    /* =========================================================
+       Initialize & Wire UI
+       ========================================================= */
+    
+    // Check for active session
+    var session = LS.get('session', null);
+    if (session) {
+      initUser(session);
+    } else {
+      show('scr-login');
+    }
+
+    // Home Navigation
+    $('#scr-home').addEventListener('click', function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;
       var act = t.getAttribute('data-act');
       if (act === 'new') Meet.join(newCode(), 'Instant meeting');
-      else if (act === 'join') {
-        var jc = $('#joinCode'); if (jc) jc.value = '';
-        var jn = $('#joinName'); if (jn) jn.value = ME.name;
-        show('scr-join');
-        setTimeout(function () { var el = $('#joinCode'); if (el) el.focus(); }, 80);
-      } else if (act === 'schedule') { renderSchedule(); show('scr-schedule'); }
-      else if (act === 'groups') { renderGroups(); show('scr-groups'); }
+      else if (act === 'join') { $('#joinCode').value = ''; show('scr-join'); }
+      else if (act === 'schedule') { show('scr-schedule'); }
+      else if (act === 'groups') { show('scr-groups'); }
+      else if (act === 'friends') { renderFriends(); show('scr-friends'); }
     });
-  }
 
-  function doJoin() {
-    var codeEl = $('#joinCode'); var code = codeEl ? codeEl.value.trim() : '';
-    var nameEl = $('#joinName'); var name = nameEl ? nameEl.value.trim() : '';
-    if (name) { ME.name = name; LS.set('name', name); renderName(); }
-    if (!norm(code)) { toast('Enter a meeting code'); return; }
-    Meet.join(code, 'Meeting');
-  }
-  var doJoinBtn = $('#doJoin'); if (doJoinBtn) doJoinBtn.addEventListener('click', doJoin);
-  var joinCodeEl = $('#joinCode'); if (joinCodeEl) joinCodeEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(); });
-
-  var schCreate = $('#schCreate'); if (schCreate) {
-    schCreate.addEventListener('click', function () {
-      var titleEl = $('#schTitle'); var title = titleEl ? titleEl.value.trim() : 'Meeting';
-      var whenEl = $('#schWhen'); var whenVal = whenEl ? whenEl.value : '';
-      var whenMs = whenVal ? new Date(whenVal).getTime() : Date.now() + 15 * 60000;
-      if (isNaN(whenMs)) whenMs = Date.now() + 15 * 60000;
-      var item = addScheduled(title || 'Meeting', whenMs);
-      if (titleEl) titleEl.value = ''; if (whenEl) whenEl.value = '';
-      renderSchedule(); renderUpcoming(); toast('Scheduled · code ' + item.code);
+    // Back buttons
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-back]'); if (!b) return;
+      var dest = b.getAttribute('data-back') || 'scr-home';
+      if (dest === 'scr-groups') Group.close();
+      show(dest);
     });
-  }
 
-  var newGroupBtn = $('#newGroupBtn'); if (newGroupBtn) {
-    newGroupBtn.addEventListener('click', function () {
-      var name = prompt('Group name:', 'Team chat'); if (name === null) return;
-      Group.open(newCode(), name.trim() || 'Team chat');
+    // Joining a meeting
+    $('#doJoin').addEventListener('click', function () {
+      var code = $('#joinCode').value.trim();
+      if (!norm(code)) { toast('Enter code'); return; }
+      Meet.join(code, 'Meeting');
     });
-  }
 
-  var joinGroupBtn = $('#joinGroupBtn'); if (joinGroupBtn) {
-    joinGroupBtn.addEventListener('click', function () {
-      var el = $('#grpCode'); var code = el ? el.value.trim() : '';
-      if (!norm(code)) { toast('Enter a group code'); return; }
-      el.value = ''; Group.open(code, 'Group ' + code);
+    // Meeting Controls
+    $('#toggleMic').addEventListener('click', function () { Meet.toggleMic(); });
+    $('#toggleCam').addEventListener('click', function () { Meet.toggleCam(); });
+    $('#leaveMeet').addEventListener('click', function () { Meet.leave(); });
+    $('#meetChatBtn').addEventListener('click', function () { $('#meetChatDrawer').classList.toggle('open'); });
+    $('#closeDrawer').addEventListener('click', function () { $('#meetChatDrawer').classList.remove('open'); });
+    
+    function sendMeetMsg() {
+      var v = $('#meetInput').value.trim(); if (!v) return;
+      Meet.send(v); $('#meetInput').value = '';
+    }
+    $('#meetSend').addEventListener('click', sendMeetMsg);
+    $('#meetInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMeetMsg(); });
+    
+    setupImageUpload('mImgBtn', 'mImgInput', function(data) { Meet.send('', data); });
+
+    // Groups Controls
+    $('#newGroupBtn').addEventListener('click', function () {
+      var name = prompt('Group name:'); if (!name) return;
+      Group.open(newCode(), name);
     });
-  }
-  var grpCodeEl = $('#grpCode'); if (grpCodeEl) grpCodeEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var b = $('#joinGroupBtn'); if (b) b.click(); } });
-
-  function sendGroupMsg() {
-    var inp = $('#msgInput'); var v = inp ? inp.value.trim() : '';
-    if (!v) return; Group.send(v); inp.value = '';
-  }
-  var sendMsgBtn = $('#sendMsg'); if (sendMsgBtn) sendMsgBtn.addEventListener('click', sendGroupMsg);
-  var msgInputEl = $('#msgInput'); if (msgInputEl) msgInputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendGroupMsg(); });
-
-  var toggleMicBtn = $('#toggleMic'); if (toggleMicBtn) toggleMicBtn.addEventListener('click', function () { Meet.toggleMic(); });
-  var toggleCamBtn = $('#toggleCam'); if (toggleCamBtn) toggleCamBtn.addEventListener('click', function () { Meet.toggleCam(); });
-  var copyInviteBtn = $('#copyInvite'); if (copyInviteBtn) copyInviteBtn.addEventListener('click', function () { copyText(inviteLink('m', Meet.code)); });
-  var leaveMeetBtn = $('#leaveMeet'); if (leaveMeetBtn) leaveMeetBtn.addEventListener('click', function () { Meet.leave(); });
-
-  var meetChatBtn = $('#meetChatBtn'); if (meetChatBtn) meetChatBtn.addEventListener('click', function () { var el = $('#meetChatDrawer'); if (el) el.classList.toggle('open'); });
-  var closeDrawerBtn = $('#closeDrawer'); if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', function () { var el = $('#meetChatDrawer'); if (el) el.classList.remove('open'); });
-
-  function sendMeetMsg() {
-    var inp = $('#meetInput'); var v = inp ? inp.value.trim() : '';
-    if (!v) return; Meet.send(v); inp.value = '';
-  }
-  var meetSendBtn = $('#meetSend'); if (meetSendBtn) meetSendBtn.addEventListener('click', sendMeetMsg);
-  var meetInputEl = $('#meetInput'); if (meetInputEl) meetInputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendMeetMsg(); });
-
-  function openNameModal() {
-    var ni = $('#nameInput'); if (ni) ni.value = ME.name;
-    var nm = $('#nameModal'); if (nm) nm.classList.add('open');
-    setTimeout(function () { if (ni) ni.focus(); }, 60);
-  }
-  var namePillBtn = $('#namePill'); if (namePillBtn) namePillBtn.addEventListener('click', openNameModal);
-  var nameCancelBtn = $('#nameCancel'); if (nameCancelBtn) nameCancelBtn.addEventListener('click', function () { var el = $('#nameModal'); if (el) el.classList.remove('open'); });
-  var nameSaveBtn = $('#nameSave'); if (nameSaveBtn) {
-    nameSaveBtn.addEventListener('click', function () {
-      var ni = $('#nameInput'); var v = ni ? ni.value.trim() : '';
-      if (v) { ME.name = v; LS.set('name', v); renderName(); }
-      var el = $('#nameModal'); if (el) el.classList.remove('open');
+    $('#joinGroupBtn').addEventListener('click', function () {
+      var code = $('#grpCode').value.trim(); if (!code) return;
+      Group.open(code, 'Group ' + code);
     });
-  }
-  var nameInputEl = $('#nameInput'); if (nameInputEl) nameInputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var b = $('#nameSave'); if (b) b.click(); } });
-  var nameModalEl = $('#nameModal'); if (nameModalEl) nameModalEl.addEventListener('click', function (e) { if (e.target === nameModalEl) nameModalEl.classList.remove('open'); });
+    function sendGroupMsg() {
+      var v = $('#msgInput').value.trim(); if (!v) return;
+      Group.send(v); $('#msgInput').value = '';
+    }
+    $('#sendMsg').addEventListener('click', sendGroupMsg);
+    $('#msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendGroupMsg(); });
+    setupImageUpload('gImgBtn', 'gImgInput', function(data) { Group.send('', data); });
 
-  function handleHash() {
-    var h = location.hash.replace(/^#/, ''); if (!h) return;
-    var parts = h.split('='); var k = parts[0], v = decodeURIComponent(parts[1] || ''); if (!v) return;
-    if (k === 'm') setTimeout(function () { Meet.join(v, 'Meeting'); }, 250);
-    else if (k === 'g') setTimeout(function () { Group.open(v, 'Group ' + v); }, 250);
-  }
-  handleHash(); window.addEventListener('hashchange', handleHash);
-
-  var schWhen = $('#schWhen');
-  if (schWhen) {
-    var d = new Date(Date.now() + 30 * 60000 - new Date().getTimezoneOffset() * 60000);
-    schWhen.value = d.toISOString().slice(0, 16);
-  }
-
-  /* =========================================================
-     11. PWA: service worker + install prompt
-     ========================================================= */
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
-  }
-
-  var deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault(); deferredPrompt = e;
-    var btn = $('#installBtn'); if (btn) btn.style.display = 'flex';
-  });
-  var installBtn = $('#installBtn');
-  if (installBtn) {
-    installBtn.addEventListener('click', function () {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(function () { deferredPrompt = null; installBtn.style.display = 'none'; });
+    // Image Uploads
+    setupImageUpload('fcImgBtn', 'fcImgInput', function(data) { 
+      if (currentFriend) {
+        var msg = { id: uid(), type: 'friend-msg', sender: ME.username, text: '', img: data, ts: Date.now() };
+        saveFriendMessage(currentFriend, msg);
+        renderFriendChat(currentFriend);
+        var c = connectToFriend(currentFriend);
+        if (c && c.open) c.send(msg);
+      }
     });
+
+  } catch (fatalError) {
+    var el = document.getElementById('error-overlay');
+    el.style.display = 'block';
+    el.textContent = 'Fatal Initialization Error: \n' + fatalError.stack;
   }
-
-  document.addEventListener('touchmove', function (e) {
-    if (e.target.closest('.msglist, .scroll')) return;
-    if (document.body.scrollTop === 0) e.preventDefault();
-  }, { passive: false });
-
 });
 </script>
 </body>
