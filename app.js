@@ -1,8 +1,4 @@
 window.onerror = function(msg, url, line) {
-  if (msg.includes('window is not defined') || msg.includes('WebGPU') || url.includes('worker')) {
-    console.warn("Optional AI feature failed. Ignoring.", msg);
-    return true; 
-  }
   var el = document.getElementById('error-overlay');
   if (el) { el.style.display = 'block'; el.textContent = 'Error: ' + msg + '\nAt: ' + url + ':' + line; }
   return false;
@@ -34,18 +30,58 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Cloud AI Engine (Gemini API Only)
+       Cloud AI Engine (Gemini API)
        ========================================================= */
     let isAiLoading = false;
+    const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; // ⚠️ PASTE YOUR GEMINI KEY HERE
 
-    // ⚠️ PASTE YOUR FREE GEMINI API KEY HERE ⚠️
-    const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; 
+    async function askAI(promptText) {
+      const chatBox = $('#aiChatBox');
+      const placeholder = $('#aiPlaceholder');
+      if (placeholder) placeholder.style.display = 'none'; // hide welcome text
+      
+      const loadingId = 'ai-loading-' + Date.now();
+      
+      // Append User Message
+      chatBox.innerHTML += `<div style="margin-bottom: 12px; text-align: right;"><span style="color: #fff; background: rgba(59,107,245,0.6); padding: 6px 12px; border-radius: 12px; display: inline-block; max-width: 90%; text-align: left;">${promptText}</span></div>`;
+      
+      // Append Loading message
+      chatBox.innerHTML += `<div id="${loadingId}" style="margin-bottom: 12px;"><span style="color: var(--accent-2); font-weight: bold;">AI:</span> <span style="color: var(--muted);">Thinking...</span></div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        // Inject meeting transcript for context if it exists
+        let finalPrompt = promptText;
+        if (Meet.transcript.trim() !== '') {
+            finalPrompt = `Context (Meeting Transcript):\n"${Meet.transcript}"\n\nUser Question: ${promptText}`;
+        }
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            contents: [{ parts: [{ text: finalPrompt }] }] 
+          })
+        });
+        
+        if (!response.ok) throw new Error('API request failed. Check your API key.');
+        
+        const data = await response.json();
+        const aiText = data.candidates[0].content.parts[0].text;
+        
+        document.getElementById(loadingId).innerHTML = `<div style="margin-bottom: 12px;"><span style="color: var(--accent-2); font-weight: bold; display: block; margin-bottom: 4px;">AI:</span> <span style="line-height: 1.5;">${aiText.replace(/\n/g, '<br>')}</span></div>`;
+      } catch (err) {
+        document.getElementById(loadingId).innerHTML = `<div style="margin-bottom: 12px;"><span style="color: var(--danger); font-weight: bold;">Error:</span> <span style="color: var(--danger);">${err.message}</span></div>`;
+      } finally {
+        isAiLoading = false;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    }
 
     /* =========================================================
        Guest URL Logic
        ========================================================= */
     var pendingMeetingCode = '';
-    
     function checkMeetingLink() {
       const hash = location.hash;
       if (hash.includes('m=')) {
@@ -55,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       return false;
     }
-
     var hasPendingLink = checkMeetingLink();
 
     $('#guestJoinBtn').addEventListener('click', function() {
@@ -64,15 +99,11 @@ document.addEventListener('DOMContentLoaded', function() {
       ME.id = 'guest-' + uid();
       ME.name = guestName;
       ME.username = guestName.replace(/\s/g, '').toLowerCase() + '_guest';
-      
       show('scr-meet');
       Meet.join(pendingMeetingCode, 'Guest Meeting');
     });
 
-    $('#guestGoToLogin').addEventListener('click', function(e) {
-      e.preventDefault();
-      show('scr-login');
-    });
+    $('#guestGoToLogin').addEventListener('click', function(e) { e.preventDefault(); show('scr-login'); });
 
     /* =========================================================
        Auth Logic
@@ -95,7 +126,6 @@ document.addEventListener('DOMContentLoaded', function() {
       var email = $('#authEmail').value.trim(), pass = $('#authPass').value, username = $('#authUsername').value.trim().toLowerCase(), err = $('#authError');
       if (!email || !pass) { err.textContent = 'Email and password required.'; err.style.display = 'block'; return; }
       if (isSignUp && !username) { err.textContent = 'Username required.'; err.style.display = 'block'; return; }
-      
       err.textContent = 'Authenticating...'; err.style.display = 'block'; err.style.color = 'var(--muted)'; $('#authBtn').disabled = true;
 
       if (supabase) {
@@ -123,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (session) handleUserLogin(session.user); 
         else { if (hasPendingLink) show('scr-guest-join'); else show('scr-login'); }
       });
-
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) handleUserLogin(session.user);
         else if (event === 'SIGNED_OUT') show('scr-login');
@@ -145,13 +174,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function initUser(userId, username) {
       ME.id = userId; ME.username = username; ME.name = username.charAt(0).toUpperCase() + username.slice(1);
       $('#heroName').textContent = ME.name; $('#userPill').textContent = ME.name;
-      
       show('scr-home'); 
-      try { 
-        initMainPeer(); 
-        if (typeof renderFriends === 'function') renderFriends(); 
-      } catch (e) { console.error("Init failed:", e); }
-
+      try { initMainPeer(); renderFriends(); } catch (e) { console.error("Init failed:", e); }
       if (hasPendingLink) Meet.join(pendingMeetingCode, 'Meeting');
     }
 
@@ -183,11 +207,9 @@ document.addEventListener('DOMContentLoaded', function() {
       var safeUsername = ME.username.replace(/[^a-zA-Z0-9]/g, ''); 
       mainPeer = new Peer('mc-user-' + safeUsername, PEER_OPTS);
       
-      // Handle PeerJS WebSocket errors gracefully
       mainPeer.on('error', function(err) {
-        console.error("PeerJS Error:", err);
         if (err.type === 'network' || err.type === 'server-error') {
-          toast("Signaling server is busy. Please try again in a moment.");
+          toast("Signaling server is busy. Retrying...");
         }
       });
 
@@ -211,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this._cleanup(); this.ended = false; this.code = code; this.title = title || 'Meeting';
         
         $('#meetTitle').textContent = this.title; $('#meetCode').textContent = code;
-        $('#meetMsgs').innerHTML = ''; $('#meetChatDrawer').classList.remove('open'); $('#aiDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open');
+        $('#meetMsgs').innerHTML = ''; $('#meetChatDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open');
         $('#remoteVideo').srcObject = null; $('#stage').classList.remove('whiteboard-active');
         
         this.setStatus('Starting camera…'); this.overlay('Starting camera…'); show('scr-meet');
@@ -220,14 +242,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         this.peer = new Peer('mc-mtg-' + norm(code), PEER_OPTS);
         
-        // Handle PeerJS errors during meeting join
         this.peer.on('error', function (err) {
            if (err.type === 'unavailable-id') {
              try { this.peer.destroy(); } catch (e) {} this.peer = null; 
              Meet.connectGuest('mc-mtg-' + norm(code));
            } else if (err.type === 'network' || err.type === 'server-error') {
-             Meet.setStatus('Network Error');
-             Meet.overlay('Could not connect to signaling server. Please refresh.');
+             Meet.setStatus('Network Error'); Meet.overlay('Could not connect to signaling server.');
            }
         }.bind(this));
 
@@ -407,40 +427,6 @@ document.addEventListener('DOMContentLoaded', function() {
         this.recognition.start(); $('#toggleCaptions').classList.add('active');
       },
 
-      generateSummary: async function() {
-        const aiBox = $('#aiMsgs');
-        if (this.transcript.trim() === '') { aiBox.innerHTML += `<div class="bubble ai"><div class="meta">Meetly AI</div>No speech detected yet. Please turn on captions and speak!</div>`; aiBox.scrollTop = aiBox.scrollHeight; return; }
-        if (isAiLoading) return; isAiLoading = true;
-        
-        const loadingId = 'ai-loading-' + Date.now();
-        aiBox.innerHTML += `<div class="bubble ai" id="${loadingId}"><div class="meta">Meetly AI</div>Analyzing transcript...</div>`; 
-        aiBox.scrollTop = aiBox.scrollHeight;
-
-        try {
-          console.log("Using Cloud API (Gemini) for AI.");
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              contents: [{ parts: [{ text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}` }] }] 
-            })
-          });
-          
-          if (!response.ok) throw new Error('Cloud API request failed. Check API key.');
-          
-          const data = await response.json();
-          const summaryText = data.candidates[0].content.parts[0].text;
-          
-          document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>${summaryText.replace(/\n/g, '<br>')}`;
-        } catch (err) {
-          console.error("AI Error:", err);
-          document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${err.message}`;
-        } finally {
-          isAiLoading = false;
-        }
-        aiBox.scrollTop = aiBox.scrollHeight;
-      },
-
       setStatus: function (t) { $('#meetStatus').textContent = t; },
       overlay: function (t) { var o = $('#stageOverlay'); if (o) { o.textContent = t; o.style.display = 'flex'; } },
       hideOverlay: function () { var o = $('#stageOverlay'); if (o) o.style.display = 'none'; },
@@ -468,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     /* =========================================================
-       UI Binding
+       UI Binding & Event Listeners
        ========================================================= */
     function appendBubble(container, m, myUsername) {
       if (!container) return;
@@ -490,19 +476,36 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#toggleWhiteboard').addEventListener('click', function () { $('#stage').classList.toggle('whiteboard-active'); $('#toggleWhiteboard').classList.toggle('active'); });
     $('#leaveMeet').addEventListener('click', function () { Meet.leave(); });
     
-    $('#meetChatBtn').addEventListener('click', function () { $('#meetChatDrawer').classList.toggle('open'); $('#aiDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open'); });
+    $('#meetChatBtn').addEventListener('click', function () { $('#meetChatDrawer').classList.toggle('open'); $('#participantsDrawer').classList.remove('open'); });
     $('#closeDrawer').addEventListener('click', function () { $('#meetChatDrawer').classList.remove('open'); });
-    $('#meetAiBtn').addEventListener('click', function () { $('#aiDrawer').classList.toggle('open'); $('#meetChatDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open'); });
-    $('#closeAiDrawer').addEventListener('click', function () { $('#aiDrawer').classList.remove('open'); });
-    $('#meetParticipantsBtn').addEventListener('click', function () { $('#participantsDrawer').classList.toggle('open'); $('#meetChatDrawer').classList.remove('open'); $('#aiDrawer').classList.remove('open'); });
+    $('#meetParticipantsBtn').addEventListener('click', function () { $('#participantsDrawer').classList.toggle('open'); $('#meetChatDrawer').classList.remove('open'); });
     $('#closeParticipantsDrawer').addEventListener('click', function () { $('#participantsDrawer').classList.remove('open'); });
     $('#downloadListBtn').addEventListener('click', function() { Meet.downloadParticipantList(); });
-    $('#aiSummaryBtn').addEventListener('click', function() { Meet.generateSummary(); });
 
     function sendMeetMsg() { var v = $('#meetInput').value.trim(); if (!v) return; Meet.send(v); $('#meetInput').value = ''; }
     $('#meetSend').addEventListener('click', sendMeetMsg);
     $('#meetInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMeetMsg(); });
 
+    // --- AI MODAL LOGIC ---
+    $('#meetAiBtn').addEventListener('click', function() { $('#aiModal').classList.add('open'); });
+    $('#closeAiModal').addEventListener('click', function() { $('#aiModal').classList.remove('open'); });
+    
+    $('#aiSendBtn').addEventListener('click', function() {
+      const prompt = $('#aiPromptInput').value.trim();
+      if (!prompt || isAiLoading) return;
+      
+      $('#aiPromptInput').value = '';
+      isAiLoading = true;
+      askAI(prompt);
+    });
+
+    $('#aiPromptInput').addEventListener('keydown', function(e) { 
+      if (e.key === 'Enter') {
+        $('#aiSendBtn').click();
+      }
+    });
+
+    // --- NAVIGATION ---
     $('#scr-home').addEventListener('click', function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;
       var act = t.getAttribute('data-act');
