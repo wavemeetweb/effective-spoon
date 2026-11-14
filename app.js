@@ -1,7 +1,7 @@
 window.onerror = function(msg, url, line) {
-  // Ignore AI/WebGPU errors so they don't break the whole app
-  if (msg.includes('window is not defined') || url.includes('worker')) {
-    console.warn("WebLLM failed to load.", msg);
+  // Ignore WebGPU/WebLLM errors so they don't break the UI
+  if (msg.includes('window is not defined') || msg.includes('WebGPU') || url.includes('worker')) {
+    console.warn("Optional AI feature failed to load. Ignoring.", msg);
     return true; 
   }
   var el = document.getElementById('error-overlay');
@@ -38,23 +38,27 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Inline WebLLM AI Helper (No Worker - Lighter Model)
+       Hybrid AI Engine (WebLLM + Gemini Fallback)
        ========================================================= */
     let webllmEngine = null;
     let isAiReady = false;
     let isAiLoading = false;
 
+    // ⚠️ PASTE YOUR FREE GEMINI API KEY HERE ⚠️
+    const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; 
+
     async function initWebAI() {
       if (isAiReady) return;
-      try {
-        if (!navigator.gpu) {
-          console.warn("WebGPU not supported. AI features disabled.");
-          return;
-        }
+      
+      // Check for WebGPU
+      if (!navigator.gpu) {
+        console.warn("WebGPU not supported. The AI will use the Cloud Fallback.");
+        return; 
+      }
 
+      try {
         const { CreateMLCEngine } = window.webllm;
-        
-        // LIGHTER MODEL: Qwen 0.5B (~278MB download)
+        // Lighter model (Qwen 0.5B) for faster download
         webllmEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
           initProgressCallback: (progress) => {
              const loadingEl = document.getElementById('ai-loading-msg');
@@ -63,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         isAiReady = true;
       } catch (e) {
-        console.error("AI Init failed:", e);
+        console.error("WebLLM failed to load:", e);
       }
     }
 
@@ -202,7 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
       mainPeer.on('call', function(incoming) { if (confirm('Incoming call from ' + incoming.peer.replace('mc-user-', '') + '. Accept?')) { Meet.acceptDirectCall(incoming); } else { incoming.close(); } });
     }
 
-    // Simple friends placeholder
     function renderFriends() { $('#friendList').innerHTML = '<div class="empty">Add friends via the search bar above.</div>'; }
     $('#addFriendBtn').addEventListener('click', function() { toast("Friend system requires a full database setup."); });
 
@@ -400,31 +403,53 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.transcript.trim() === '') { aiBox.innerHTML += `<div class="bubble ai"><div class="meta">Meetly AI</div>No speech detected yet. Please turn on captions and speak!</div>`; aiBox.scrollTop = aiBox.scrollHeight; return; }
         if (isAiLoading) return; isAiLoading = true;
         
-        aiBox.innerHTML += `<div class="bubble ai" id="ai-loading-msg"><div class="meta">Meetly AI</div>${isAiReady ? 'Analyzing transcript...' : 'Preparing AI Model (This may take a minute)...'}</div>`; 
+        const loadingId = 'ai-loading-' + Date.now();
+        aiBox.innerHTML += `<div class="bubble ai" id="${loadingId}"><div class="meta">Meetly AI</div>Analyzing transcript...</div>`; 
         aiBox.scrollTop = aiBox.scrollHeight;
 
-        if (!isAiReady) {
+        if (!isAiReady && navigator.gpu) {
           await initWebAI();
-          if (!isAiReady) {
-             document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>⚠️ AI could not load. Your browser might not support WebGPU.`;
-             isAiLoading = false;
-             return;
-          }
         }
 
         try {
-          const messages = [
-            { role: "system", content: "You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items." },
-            { role: "user", content: this.transcript }
-          ];
-          const reply = await webllmEngine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
+          let summaryText = '';
+
+          if (isAiReady && webllmEngine) {
+            const messages = [
+              { role: "system", content: "You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items." },
+              { role: "user", content: this.transcript }
+            ];
+            const reply = await webllmEngine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
+            summaryText = reply.choices[0].message.content;
+          } 
+          else {
+            console.log("Using Cloud API fallback (Gemini) for AI.");
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}`
+                  }]
+                }]
+              })
+            });
+
+            if (!response.ok) throw new Error('Cloud API request failed. Please check your Gemini API key.');
+            const data = await response.json();
+            summaryText = data.candidates[0].content.parts[0].text;
+          }
+
+          document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>${summaryText.replace(/\n/g, '<br>')}`;
           
-          document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>${reply.choices[0].message.content.replace(/\n/g, '<br>')}`;
-          isAiLoading = false;
         } catch (err) {
-          document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${err.message}`;
+          console.error("AI Error:", err);
+          document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${err.message}`;
+        } finally {
           isAiLoading = false;
         }
+        aiBox.scrollTop = aiBox.scrollHeight;
       },
 
       setStatus: function (t) { $('#meetStatus').textContent = t; },
