@@ -8,8 +8,11 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎥</text></svg>">
 
+  <!-- Load Supabase and PeerJS -->
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  
+  <!-- Load WebLLM -->
   <script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
     window.webllm = webllm; 
@@ -167,7 +170,7 @@
       </div>
     </section>
 
-    <!-- GUEST JOIN SCREEN (NEW) -->
+    <!-- GUEST JOIN SCREEN -->
     <section id="scr-guest-join" class="screen">
       <div class="holo-bg"></div>
       <div class="scroll narrow" style="display:flex;align-items:center;justify-content:center;height:100%;position:relative;z-index:2">
@@ -218,41 +221,78 @@
       </div>
     </section>
 
-    <!-- MEETING ROOM (Unchanged) -->
-    <!-- ... (Copy the meeting room HTML from previous code) ... -->
+    <!-- MEETING ROOM -->
     <section id="scr-meet" class="screen">
       <div class="stage" id="stage">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" autoplay playsinline muted></video>
+        
         <canvas id="whiteboardCanvas"></canvas>
         <div id="captionsBox">...</div>
+        
         <div class="stage-overlay" id="stageOverlay">Waiting for someone to join…</div>
+        
         <div class="meet-top">
           <div class="title-stack"><div class="title" id="meetTitle">Meeting</div><div class="sub" id="meetCode">code</div></div>
-          <div class="spacer"></div><span class="status" id="meetStatus">…</span>
+          <div class="spacer"></div>
+          <span class="status" id="meetStatus">…</span>
+          
           <button class="icon-btn" id="meetParticipantsBtn" title="Participants">👥</button>
           <button class="icon-btn" id="meetAiBtn" title="AI Assistant">🤖</button>
           <button class="icon-btn" id="meetChatBtn" title="Chat">💬</button>
         </div>
+
         <div class="meet-controls">
           <button class="ctl" id="toggleMic"><span>🎤</span><small>Mute</small></button>
           <button class="ctl" id="toggleCam"><span>📷</span><small>Camera</small></button>
+          
           <button class="ctl" id="hostMuteAll" style="display:none; border-color:var(--danger)"><span>🔇</span><small>Mute All</small></button>
           <button class="ctl" id="hostCamAll" style="display:none; border-color:var(--danger)"><span>🚫</span><small>Cam Off All</small></button>
+          
           <button class="ctl" id="raiseHand" style="display:none; background:rgba(91,192,190,0.2)"><span>✋</span><small>Request</small></button>
+
           <button class="ctl" id="toggleScreen"><span>🖥️</span><small>Share</small></button>
           <button class="ctl" id="toggleWhiteboard"><span>🎨</span><small>Board</small></button>
           <button class="ctl" id="toggleCaptions"><span>📝</span><small>Captions</small></button>
           <button class="ctl danger" id="leaveMeet"><span>✖</span><small>Leave</small></button>
         </div>
       </div>
-      <!-- Drawers (Chat, AI, Participants) Omitted for brevity, use previous version -->
-      <div class="drawer" id="participantsDrawer"><div class="drawer-head">Participants (<span id="participantCount">1</span>)<button class="icon-btn" id="closeParticipantsDrawer">✕</button></div><div class="msglist" id="participantsList"></div><div class="composer" style="justify-content:center;"><button class="btn primary block" id="downloadListBtn" style="font-size:13px;">⬇️ Download List (CSV)</button></div></div>
-      <div class="drawer" id="meetChatDrawer"><div class="drawer-head">Meeting Chat<button class="icon-btn" id="closeDrawer">✕</button></div><div class="msglist" id="meetMsgs"></div><div class="composer"><button class="icon-btn" id="mImgBtn">🖼️</button><input type="file" id="mImgInput" accept="image/*" style="display:none" /><input id="meetInput" class="input" placeholder="Message…" autocomplete="off" /><button class="btn primary" id="meetSend">Send</button></div></div>
-      <div class="drawer" id="aiDrawer"><div class="drawer-head" style="color:var(--accent-2)">AI Assistant 🤖<button class="icon-btn" id="closeAiDrawer">✕</button></div><div class="msglist" id="aiMsgs"><div class="bubble ai"><div class="meta">Meetly AI</div>Hello! I am your AI assistant.</div></div><div class="composer"><button class="btn" id="aiSummaryBtn" style="background:rgba(139,91,255,0.2); border-color:var(--accent-2); color:#fff; flex:1">✨ Generate Summary Notes</button></div></div>
+
+      <!-- Participants Drawer -->
+      <div class="drawer" id="participantsDrawer">
+        <div class="drawer-head">
+          Participants (<span id="participantCount">1</span>)
+          <button class="icon-btn" id="closeParticipantsDrawer">✕</button>
+        </div>
+        <div class="msglist" id="participantsList"></div>
+        <div class="composer" style="justify-content:center;">
+          <button class="btn primary block" id="downloadListBtn" style="font-size:13px;">⬇️ Download List (CSV)</button>
+        </div>
+      </div>
+
+      <!-- Chat Drawer -->
+      <div class="drawer" id="meetChatDrawer">
+        <div class="drawer-head">Meeting Chat<button class="icon-btn" id="closeDrawer">✕</button></div>
+        <div class="msglist" id="meetMsgs"></div>
+        <div class="composer"><button class="icon-btn" id="mImgBtn">🖼️</button><input type="file" id="mImgInput" accept="image/*" style="display:none" /><input id="meetInput" class="input" placeholder="Message…" autocomplete="off" /><button class="btn primary" id="meetSend">Send</button></div>
+      </div>
+
+      <!-- AI Drawer -->
+      <div class="drawer" id="aiDrawer">
+        <div class="drawer-head" style="color:var(--accent-2)">AI Assistant 🤖<button class="icon-btn" id="closeAiDrawer">✕</button></div>
+        <div class="msglist" id="aiMsgs">
+           <div class="bubble ai">
+             <div class="meta">Meetly AI</div>
+             Hello! I am your AI assistant. I am listening to the meeting captions. Click "Generate Summary" below to get notes.
+           </div>
+        </div>
+        <div class="composer">
+          <button class="btn" id="aiSummaryBtn" style="background:rgba(139,91,255,0.2); border-color:var(--accent-2); color:#fff; flex:1">✨ Generate Summary Notes</button>
+        </div>
+      </div>
     </section>
     
-    <!-- Other screens (Friends, Schedule, etc.) Omitted for brevity -->
+    <!-- Other screens -->
     <section id="scr-friends" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Friends</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Add a friend</label><div class="row"><input id="addFriendInput" class="input" placeholder="username" /><button class="btn" id="addFriendBtn">Add</button></div></div></div><h2 class="sec">Your Friends</h2><div id="friendList" class="list"></div></div></section>
     <section id="scr-join" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Join Meeting</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Meeting code</label><input id="joinCode" class="input" placeholder="abc-def-ghi" /></div><button class="btn primary block" id="doJoin">Join meeting</button></div></div></section>
     <section id="scr-schedule" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Schedule</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Topic</label><input id="schTitle" class="input" /></div><div class="field"><label>When</label><input id="schWhen" class="input" type="datetime-local" /></div><button class="btn primary block" id="schCreate">Create meeting</button></div></div></section>
@@ -261,6 +301,7 @@
   </div>
 
   <div id="toast"></div>
+  
   <script src="app.js"></script>
 </body>
 </html>
