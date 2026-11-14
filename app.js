@@ -1,7 +1,7 @@
 window.onerror = function(msg, url, line) {
-  // Ignore WebGPU/WebLLM errors so they don't break the UI
+  // Ignore WebGPU errors so they don't break the app
   if (msg.includes('window is not defined') || msg.includes('WebGPU') || url.includes('worker')) {
-    console.warn("Optional AI feature failed to load. Ignoring.", msg);
+    console.warn("Optional AI feature failed. Ignoring.", msg);
     return true; 
   }
   var el = document.getElementById('error-overlay');
@@ -13,9 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
   try {
     'use strict';
 
-    /* =========================================================
-       Supabase Setup
-       ========================================================= */
     const SUPABASE_URL = 'https://wpihvtfezqlmcdihlyql.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zuIhFz9-r7Bpaa9o3IXyxw_hxgjTd3s';
     var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -38,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Hybrid AI Engine (WebLLM + Gemini Fallback)
+       Hybrid AI Engine
        ========================================================= */
     let webllmEngine = null;
     let isAiReady = false;
@@ -50,15 +47,13 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initWebAI() {
       if (isAiReady) return;
       
-      // Check for WebGPU
       if (!navigator.gpu) {
-        console.warn("WebGPU not supported. The AI will use the Cloud Fallback.");
+        console.warn("WebGPU not supported. AI will use Cloud Fallback.");
         return; 
       }
 
       try {
         const { CreateMLCEngine } = window.webllm;
-        // Lighter model (Qwen 0.5B) for faster download
         webllmEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
           initProgressCallback: (progress) => {
              const loadingEl = document.getElementById('ai-loading-msg');
@@ -180,7 +175,8 @@ document.addEventListener('DOMContentLoaded', function() {
       try { 
         initMainPeer(); 
         if (typeof renderFriends === 'function') renderFriends(); 
-        if (typeof initWebAI === 'function') initWebAI();
+        // Delay AI by 3 seconds so it doesn't crash the UI
+        setTimeout(() => { if (typeof initWebAI === 'function') initWebAI(); }, 3000);
       } catch (e) { console.error("Init failed:", e); }
 
       if (hasPendingLink) Meet.join(pendingMeetingCode, 'Meeting');
@@ -189,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#logoutBtn').addEventListener('click', async function() { if (!confirm('Log out?')) return; if (supabase) await supabase.auth.signOut(); location.reload(); });
 
     /* =========================================================
-       WebRTC & Main Peer
+       WebRTC
        ========================================================= */
     var AUDIO_CONSTRAINTS = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 }, googEchoCancellation: true, googAutoGainControl: true, googNoiseSuppression: true, googHighpassFilter: true };
     function tuneOpusSdp(sdp) { return sdp ? sdp.replace(/a=fmtp:(\d+) useinbandfec=1/gi, 'a=fmtp:$1 useinbandfec=1;usedtx=0;stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;minptime=10') : sdp; }
@@ -344,7 +340,9 @@ document.addEventListener('DOMContentLoaded', function() {
       _getMedia: async function() {
         try { this.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: AUDIO_CONSTRAINTS }); } 
         catch (e1) { try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS }); toast('Audio only'); } catch (e2) { this.stream = new MediaStream(); toast('No mic/cam access'); } }
-        $('#localVideo').srcObject = this.stream; this.videoTrack = this.stream.getVideoTracks()[0];
+        $('#localVideo').srcObject = this.stream; 
+        $('#localVideo').play().catch(e=>console.log("Play error:", e));
+        this.videoTrack = this.stream.getVideoTracks()[0];
       },
 
       toggleScreenShare: async function() {
@@ -413,7 +411,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
           let summaryText = '';
-
           if (isAiReady && webllmEngine) {
             const messages = [
               { role: "system", content: "You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items." },
@@ -421,28 +418,18 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
             const reply = await webllmEngine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
             summaryText = reply.choices[0].message.content;
-          } 
-          else {
+          } else {
             console.log("Using Cloud API fallback (Gemini) for AI.");
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{
-                    text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}`
-                  }]
-                }]
-              })
+              body: JSON.stringify({ contents: [{ parts: [{ text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}` }] }] })
             });
-
-            if (!response.ok) throw new Error('Cloud API request failed. Please check your Gemini API key.');
+            if (!response.ok) throw new Error('Cloud API request failed. Check API key.');
             const data = await response.json();
             summaryText = data.candidates[0].content.parts[0].text;
           }
-
           document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>${summaryText.replace(/\n/g, '<br>')}`;
-          
         } catch (err) {
           console.error("AI Error:", err);
           document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${err.message}`;
