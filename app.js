@@ -18,12 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var $ = function (s) { return document.querySelector(s); };
     var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
     
-    var LS = {
-      get: function (k, d) { try { var v = localStorage.getItem('mc:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-      set: function (k, v) { try { localStorage.setItem('mc:' + k, JSON.stringify(v)); } catch (e) {} },
-      del: function(k) { try { localStorage.removeItem('mc:' + k); } catch (e) {} }
-    };
-
     var toastTimer;
     function toast(msg) {
       var t = $('#toast'); if (!t) return;
@@ -37,6 +31,42 @@ document.addEventListener('DOMContentLoaded', function() {
     function norm(code) { return String(code || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
     function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
+
+    /* =========================================================
+       Guest URL Logic (NEW)
+       ========================================================= */
+    var pendingMeetingCode = '';
+    
+    // Check URL for #m=code
+    function checkMeetingLink() {
+      const hash = location.hash;
+      if (hash.includes('m=')) {
+        pendingMeetingCode = hash.split('m=')[1];
+        $('#guestMeetCodeDisplay').textContent = pendingMeetingCode.toUpperCase();
+        return true;
+      }
+      return false;
+    }
+
+    var hasPendingLink = checkMeetingLink();
+
+    $('#guestJoinBtn').addEventListener('click', function() {
+      let guestName = $('#guestNameInput').value.trim();
+      if (!guestName) { toast("Please enter your name"); return; }
+      
+      // Set up Guest Identity
+      ME.id = 'guest-' + uid();
+      ME.name = guestName;
+      ME.username = guestName.replace(/\s/g, '').toLowerCase() + '_guest';
+      
+      show('scr-meet');
+      Meet.join(pendingMeetingCode, 'Guest Meeting');
+    });
+
+    $('#guestGoToLogin').addEventListener('click', function(e) {
+      e.preventDefault();
+      show('scr-login');
+    });
 
     /* =========================================================
        Auth Logic
@@ -81,8 +111,18 @@ document.addEventListener('DOMContentLoaded', function() {
       if (error) { err.textContent = error.message; err.style.color = 'var(--danger)'; $('#googleLoginBtn').disabled = false; }
     });
 
+    // Initial Load Routing
+    show('scr-login');
     if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => { if (session) handleUserLogin(session.user); });
+      supabase.auth.getSession().then(({ data: { session } }) => { 
+        if (session) {
+          handleUserLogin(session.user); 
+        } else {
+          if (hasPendingLink) show('scr-guest-join');
+          else show('scr-login');
+        }
+      });
+
       supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) handleUserLogin(session.user);
         else if (event === 'SIGNED_OUT') show('scr-login');
@@ -95,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (profile) { initUser(user.id, profile.username); }
         else {
           var defaultUsername = user.user_metadata?.full_name?.toLowerCase().replace(/\s/g, '') || user.email.split('@')[0].toLowerCase();
-          const { error: insertError } = await supabase.from('profiles').insert({ id: user.id, username: defaultUsername });
+          await supabase.from('profiles').insert({ id: user.id, username: defaultUsername });
           initUser(user.id, defaultUsername);
         }
       } catch (err) { initUser(user.id, user.email.split('@')[0]); }
@@ -104,8 +144,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function initUser(userId, username) {
       ME.id = userId; ME.username = username; ME.name = username.charAt(0).toUpperCase() + username.slice(1);
       $('#heroName').textContent = ME.name; $('#userPill').textContent = ME.name;
+      
       show('scr-home'); 
-      try { initMainPeer(); renderFriends(); initWebAI(); } catch (e) { console.error("Init failed:", e); }
+      
+      try { 
+        initMainPeer(); 
+        if (typeof renderFriends === 'function') renderFriends(); 
+        if (typeof initWebAI === 'function') initWebAI();
+      } catch (e) { console.error("Init failed:", e); }
+
+      // If they logged in while having a pending meeting link
+      if (hasPendingLink) {
+        Meet.join(pendingMeetingCode, 'Meeting');
+      }
     }
 
     $('#logoutBtn').addEventListener('click', async function() { if (!confirm('Log out?')) return; if (supabase) await supabase.auth.signOut(); location.reload(); });
@@ -140,28 +191,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function initWebAI() {
       if (aiWorker) return;
-      aiWorker = new Worker('worker.js', { type: 'module' });
-      aiWorker.onmessage = function(event) {
-        const { type, data } = event.data;
-        const aiBox = $('#aiMsgs');
-        const loadingEl = document.getElementById('ai-loading-msg');
-        if (type === 'progress') { if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div><div style="font-size:12px; color:var(--accent-hi);">${data}</div>`; } 
-        else if (type === 'loaded') { isAiReady = true; isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>✅ AI Ready! Click "Generate Summary" again.`; } 
-        else if (type === 'summary') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>${data.replace(/\n/g, '<br>')}`; aiBox.scrollTop = aiBox.scrollHeight; } 
-        else if (type === 'error') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${data}`; }
-      };
+      try {
+        aiWorker = new Worker('worker.js', { type: 'module' });
+        aiWorker.onmessage = function(event) {
+          const { type, data } = event.data;
+          const aiBox = $('#aiMsgs');
+          const loadingEl = document.getElementById('ai-loading-msg');
+          if (type === 'progress') { if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div><div style="font-size:12px; color:var(--accent-hi);">${data}</div>`; } 
+          else if (type === 'loaded') { isAiReady = true; isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>✅ AI Ready! Click "Generate Summary" again.`; } 
+          else if (type === 'summary') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>${data.replace(/\n/g, '<br>')}`; aiBox.scrollTop = aiBox.scrollHeight; } 
+          else if (type === 'error') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${data}`; }
+        };
+      } catch (e) { console.warn("Failed to init WebLLM:", e); }
     }
 
     /* =========================================================
-       Meeting Logic (Includes Whiteboard, Screen Share, Captions)
+       Meeting Logic
        ========================================================= */
     var Meet = {
       peer: null, conn: null, call: null, stream: null, code: '', title: '', ended: false,
       isScreenSharing: false, videoTrack: null, screenTrack: null,
       transcript: '', recognition: null, isDrawing: false,
       isHost: false, isMicLocked: false, isCamLocked: false, 
-      
-      // NEW: Participants Array
       participants: [],
 
       join: async function (code, title) {
@@ -181,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
           this.setStatus('Hosting (Teacher)'); 
           $('#hostMuteAll').style.display = 'flex';
           $('#hostCamAll').style.display = 'flex';
-          this.addParticipant(ME.name, 'Teacher'); // Add self
+          this.addParticipant(ME.name, 'Teacher');
         }.bind(this));
         
         this.peer.on('connection', function (c) { Meet.acceptConn(c); });
@@ -200,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.peer.on('open', function () {
           Meet.setStatus('Connecting (Student)…');
           $('#raiseHand').style.display = 'flex'; 
-          Meet.addParticipant(ME.name, 'Student'); // Add self
+          Meet.addParticipant(ME.name, 'Student'); 
           
           var c = Meet.peer.connect(targetId, { reliable: true, metadata: { name: ME.name } }); 
           if (c) Meet.acceptConn(c);
@@ -209,7 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
         this.peer.on('error', function (err) { if (err.type === 'peer-unavailable') { Meet.setStatus('Not found'); Meet.overlay('Meeting not found.'); } });
       },
 
-      // NEW: Handle Participants
       addParticipant: function(name, role) {
         if (!this.participants.some(p => p.name === name)) {
           this.participants.push({ name: name, role: role, id: uid() });
@@ -227,23 +277,13 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#participantCount').textContent = this.participants.length;
         list.innerHTML = '';
         this.participants.forEach(p => {
-          list.innerHTML += `
-            <div class="part-item">
-              <div>
-                <div class="part-name">${p.name}</div>
-                <div class="part-role">${p.role}</div>
-              </div>
-              <div style="font-size:16px;">${p.role === 'Teacher' ? '👑' : '🎓'}</div>
-            </div>
-          `;
+          list.innerHTML += `<div class="part-item"><div><div class="part-name">${p.name}</div><div class="part-role">${p.role}</div></div><div style="font-size:16px;">${p.role === 'Teacher' ? '👑' : '🎓'}</div></div>`;
         });
       },
 
       downloadParticipantList: function() {
         let csvContent = "data:text/csv;charset=utf-8,Name,Role\n";
-        this.participants.forEach(p => {
-          csvContent += `${p.name},${p.role}\n`;
-        });
+        this.participants.forEach(p => { csvContent += `${p.name},${p.role}\n`; });
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -260,23 +300,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         c.on('open', function () { 
           self.setStatus('Connected'); self.hideOverlay(); 
-          // If Guest connects, Host adds them to list
-          if (self.isHost && c.metadata && c.metadata.name) {
-            self.addParticipant(c.metadata.name, 'Student');
-          }
-          // If Guest connects, they add the Host
-          if (!self.isHost) {
-             self.addParticipant("Teacher", "Teacher"); 
-          }
+          if (self.isHost && c.metadata && c.metadata.name) { self.addParticipant(c.metadata.name, 'Student'); }
+          if (!self.isHost) { self.addParticipant("Teacher", "Teacher"); }
         });
         
         c.on('data', function (d) {
           if (!d || typeof d !== 'object') return;
-          
           if (d.type === 'chat') appendBubble($('#meetMsgs'), { id: uid(), sender_id: d.sender_id, content: d.text, image_url: d.img, created_at: new Date() }, ME.username);
-          if (d.type === 'whiteboard') { drawFromPeer(d.x0, d.y0, d.x1, d.y1); }
-
-          // Teacher Control Commands
+          if (d.type === 'whiteboard') { Meet.drawLocal($('#whiteboardCanvas').getContext('2d'), d.x0, d.y0, d.x1, d.y1); }
+          
           if (d.type === 'command') {
             if (d.action === 'force-mute') { self.isMicLocked = true; if (self.stream) { self.stream.getAudioTracks()[0].enabled = false; } $('#toggleMic').classList.add('off'); $('#toggleMic').querySelector('small').textContent = 'Locked'; toast("Teacher muted your microphone."); }
             if (d.action === 'force-cam-off') { self.isCamLocked = true; if (self.stream) { self.stream.getVideoTracks()[0].enabled = false; } $('#toggleCam').classList.add('off'); $('#toggleCam').querySelector('small').textContent = 'Locked'; toast("Teacher disabled your camera."); }
@@ -284,13 +316,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (d.action === 'allow-cam') { self.isCamLocked = false; $('#toggleCam').querySelector('small').textContent = 'Camera'; toast("Teacher approved your request."); }
           }
 
-          // Student Requests
           if (d.type === 'request-speak') {
              if (confirm("Student is requesting to turn on their mic/cam. Approve?")) {
                self.conn.send({ type: 'command', action: 'allow-mic' });
                self.conn.send({ type: 'command', action: 'allow-cam' });
-               toast("Approved.");
-             } else { toast("Request denied."); }
+             }
           }
         });
 
@@ -304,14 +334,13 @@ document.addEventListener('DOMContentLoaded', function() {
       forceCamAll: function() { if (this.conn && this.conn.open) { this.conn.send({ type: 'command', action: 'force-cam-off' }); toast("All student cameras disabled."); } },
       requestToSpeak: function() { if (this.conn && this.conn.open) { this.conn.send({ type: 'request-speak' }); toast("Request sent to Teacher."); } },
 
-      toggleMic: function () { if (this.isMicLocked) { toast("Teacher has muted you. Please raise your hand."); return; } if (!this.stream) return; var t = this.stream.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleMic').classList.toggle('off', !t.enabled); } },
-      toggleCam: function () { if (this.isCamLocked) { toast("Teacher has disabled your camera. Please raise your hand."); return; } if (!this.stream) return; var t = this.stream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleCam').classList.toggle('off', !t.enabled); } },
+      toggleMic: function () { if (this.isMicLocked) { toast("Teacher has muted you."); return; } if (!this.stream) return; var t = this.stream.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleMic').classList.toggle('off', !t.enabled); } },
+      toggleCam: function () { if (this.isCamLocked) { toast("Teacher has disabled your camera."); return; } if (!this.stream) return; var t = this.stream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleCam').classList.toggle('off', !t.enabled); } },
 
       _getMedia: async function() {
         try { this.stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: AUDIO_CONSTRAINTS }); } 
         catch (e1) { try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS }); toast('Audio only'); } catch (e2) { this.stream = new MediaStream(); toast('No mic/cam access'); } }
-        $('#localVideo').srcObject = this.stream;
-        this.videoTrack = this.stream.getVideoTracks()[0];
+        $('#localVideo').srcObject = this.stream; this.videoTrack = this.stream.getVideoTracks()[0];
       },
 
       toggleScreenShare: async function() {
@@ -351,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         canvas.addEventListener('mouseout', () => drawing = false);
       },
 
-      drawLocal: function(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.closePath(); },
+      drawLocal: function(ctx, x0, y0, x1, y1) { if(!ctx) return; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.closePath(); },
 
       toggleCaptions: function() {
         if (this.recognition) { this.recognition.stop(); this.recognition = null; $('#captionsBox').style.display = 'none'; $('#toggleCaptions').classList.remove('active'); return; }
@@ -359,7 +388,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!SpeechRecognition) { toast("Captions not supported."); return; }
         this.recognition = new SpeechRecognition(); this.recognition.continuous = true; this.recognition.interimResults = true;
         this.recognition.onresult = (event) => {
-          let finalTrans = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) { if (event.results[i].isFinal) this.transcript += event.results[i][0].transcript + ' '; }
           $('#captionsBox').textContent = this.transcript.slice(-60); $('#captionsBox').style.display = 'block';
         };
@@ -370,8 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const aiBox = $('#aiMsgs');
         if (this.transcript.trim() === '') { aiBox.innerHTML += `<div class="bubble ai"><div class="meta">Meetly AI</div>No speech detected yet. Please turn on captions and speak!</div>`; aiBox.scrollTop = aiBox.scrollHeight; return; }
         if (isAiLoading) return; isAiLoading = true;
-        const loadingId = 'ai-loading-msg';
-        aiBox.innerHTML += `<div class="bubble ai" id="${loadingId}"><div class="meta">Meetly AI</div>Preparing AI...</div>`; aiBox.scrollTop = aiBox.scrollHeight;
+        aiBox.innerHTML += `<div class="bubble ai" id="ai-loading-msg"><div class="meta">Meetly AI</div>Preparing AI...</div>`; aiBox.scrollTop = aiBox.scrollHeight;
         if (!isAiReady) aiWorker.postMessage({ action: 'load' }); else aiWorker.postMessage({ action: 'generate', text: this.transcript });
       },
 
@@ -384,7 +411,19 @@ document.addEventListener('DOMContentLoaded', function() {
         appendBubble($('#meetMsgs'), { id: uid(), sender_id: ME.id, content: text, image_url: imgData, created_at: new Date() }, ME.username);
       },
 
-      leave: function () { this.ended = true; if (this.recognition) this.recognition.stop(); this._cleanup(); show('scr-home'); },
+      leave: function () { 
+        this.ended = true; 
+        if (this.recognition) this.recognition.stop(); 
+        this._cleanup(); 
+        
+        // NEW: Redirect Guests to login
+        if (ME.id && ME.id.startsWith('guest-')) {
+          show('scr-login');
+          toast("Sign up to save your meeting history!");
+        } else {
+          show('scr-home'); 
+        }
+      },
 
       _cleanup: function () {
         if (this.conn) { try { this.conn.close(); } catch (e) {} this.conn = null; }
@@ -393,13 +432,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.stream) { this.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); this.stream = null; }
         if (this.screenTrack) { this.screenTrack.stop(); this.screenTrack = null; }
         if (this.recognition) { this.recognition.stop(); this.recognition = null; }
-        this.transcript = ''; this.participants = []; // Reset participants
+        this.transcript = ''; this.participants = []; 
         $('#remoteVideo').srcObject = null; $('#localVideo').srcObject = null; $('#captionsBox').style.display = 'none';
       }
     };
 
     /* =========================================================
-       UI Binding
+       UI Binding (Omitted some boilerplate for brevity, keep from previous)
        ========================================================= */
     function appendBubble(container, m, myUsername) {
       if (!container) return;
@@ -411,7 +450,6 @@ document.addEventListener('DOMContentLoaded', function() {
       wrap.appendChild(meta); wrap.appendChild(body); container.appendChild(wrap); container.scrollTop = container.scrollHeight;
     }
 
-    // Meeting Buttons
     $('#toggleMic').addEventListener('click', function () { Meet.toggleMic(); });
     $('#toggleCam').addEventListener('click', function () { Meet.toggleCam(); });
     $('#toggleScreen').addEventListener('click', function () { Meet.toggleScreenShare(); });
@@ -419,32 +457,22 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#hostMuteAll').addEventListener('click', function () { Meet.forceMuteAll(); });
     $('#hostCamAll').addEventListener('click', function () { Meet.forceCamAll(); });
     $('#raiseHand').addEventListener('click', function () { Meet.requestToSpeak(); });
-    
-    $('#toggleWhiteboard').addEventListener('click', function () { 
-      $('#stage').classList.toggle('whiteboard-active'); 
-      $('#toggleWhiteboard').classList.toggle('active');
-    });
+    $('#toggleWhiteboard').addEventListener('click', function () { $('#stage').classList.toggle('whiteboard-active'); $('#toggleWhiteboard').classList.toggle('active'); });
     $('#leaveMeet').addEventListener('click', function () { Meet.leave(); });
     
-    // Drawers
     $('#meetChatBtn').addEventListener('click', function () { $('#meetChatDrawer').classList.toggle('open'); $('#aiDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open'); });
     $('#closeDrawer').addEventListener('click', function () { $('#meetChatDrawer').classList.remove('open'); });
     $('#meetAiBtn').addEventListener('click', function () { $('#aiDrawer').classList.toggle('open'); $('#meetChatDrawer').classList.remove('open'); $('#participantsDrawer').classList.remove('open'); });
     $('#closeAiDrawer').addEventListener('click', function () { $('#aiDrawer').classList.remove('open'); });
-    
-    // Participants Drawer
     $('#meetParticipantsBtn').addEventListener('click', function () { $('#participantsDrawer').classList.toggle('open'); $('#meetChatDrawer').classList.remove('open'); $('#aiDrawer').classList.remove('open'); });
     $('#closeParticipantsDrawer').addEventListener('click', function () { $('#participantsDrawer').classList.remove('open'); });
     $('#downloadListBtn').addEventListener('click', function() { Meet.downloadParticipantList(); });
-    
     $('#aiSummaryBtn').addEventListener('click', function() { Meet.generateSummary(); });
 
-    // Sending Messages
     function sendMeetMsg() { var v = $('#meetInput').value.trim(); if (!v) return; Meet.send(v); $('#meetInput').value = ''; }
     $('#meetSend').addEventListener('click', sendMeetMsg);
     $('#meetInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMeetMsg(); });
 
-    // Navigation
     $('#scr-home').addEventListener('click', function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;
       var act = t.getAttribute('data-act');
@@ -460,7 +488,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     $('#doJoin').addEventListener('click', function () { var code = $('#joinCode').value.trim(); if (!code) return; Meet.join(code, 'Meeting'); });
 
-    // Cleanup on exit
     window.addEventListener('beforeunload', function () { Meet._cleanup(); });
 
   } catch (err) { console.error("Fatal initialization error:", err); }
