@@ -74,7 +74,6 @@
     .item .s{font-size:12.5px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
     .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 14px;border:1px dashed var(--stroke);border-radius:16px;}
 
-    /* Meeting Room Layout */
     #scr-meet{position:relative} .stage{position:relative;flex:1 1 auto;min-height:0;background:#05070d;overflow:hidden;}
     #remoteVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d;}
     #localVideo{position:absolute;right:12px;bottom:calc(94px + var(--safe-b));width:26vw;min-width:104px;max-width:170px;aspect-ratio:3/4;object-fit:cover;border-radius:14px;border:1px solid var(--stroke-2);background:#000;z-index:3;}
@@ -109,7 +108,6 @@
     .composer{flex:0 0 auto;display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--stroke);background:var(--glass);}
     .composer .input{min-height:46px}
 
-    /* Participants specific */
     .part-item { display:flex; align-items:center; justify-content:space-between; padding: 12px; background: var(--glass); border-radius: 12px; margin-bottom: 8px; border: 1px solid var(--stroke); }
     .part-name { font-weight: 600; font-size: 14px; }
     .part-role { font-size: 11px; color: var(--accent-hi); font-family: monospace; }
@@ -169,6 +167,38 @@
       </div>
     </section>
 
+    <!-- GUEST JOIN SCREEN (NEW) -->
+    <section id="scr-guest-join" class="screen">
+      <div class="holo-bg"></div>
+      <div class="scroll narrow" style="display:flex;align-items:center;justify-content:center;height:100%;position:relative;z-index:2">
+        <div class="card holo-card" style="width:100%;max-width:400px">
+          <div class="holo-header"><div class="holo-ring"></div><div class="holo-ring"></div><div class="holo-ring"></div></div>
+          <div class="brand" style="justify-content:center;margin-bottom:10px;font-size:24px; flex-direction:column; gap:12px;">
+            <svg class="logo-svg" viewBox="0 0 100 100" style="width:48px; height:48px;" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 22 75 L 40 30" stroke="#5bc0be" stroke-width="20" stroke-linecap="round" /><path d="M 48 75 L 66 30" stroke="#5bc0be" stroke-width="20" stroke-linecap="round" /><circle cx="80" cy="75" r="10" fill="#5bc0be" />
+            </svg>
+            <span class="logo-text" style="letter-spacing:4px; font-weight:300;">MEETLY<span>_</span>AI</span>
+          </div>
+          
+          <h2 style="text-align:center;color:var(--muted);font-size:14px;margin-bottom:20px;font-family:monospace;letter-spacing:1px;">
+            JOINING MEETING: <span id="guestMeetCodeDisplay" style="color:var(--accent-hi)"></span>
+          </h2>
+          
+          <div class="field">
+            <label>WHAT IS YOUR NAME?</label>
+            <input id="guestNameInput" class="input holo-input" placeholder="e.g. John Doe" autocomplete="name" />
+          </div>
+          
+          <button class="btn primary block" id="guestJoinBtn" style="margin-top:15px; font-weight:bold; letter-spacing:1px;">JOIN NOW</button>
+          
+          <div class="holo-footer" style="margin-top: 20px;">
+            <span style="color:var(--muted);">Want to save your history?</span> 
+            <a href="#" id="guestGoToLogin" style="color:var(--accent-hi); text-decoration:none; margin-left:8px; font-weight:bold;">SIGN IN</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- HOME -->
     <section id="scr-home" class="screen">
       <div class="topbar">
@@ -188,83 +218,41 @@
       </div>
     </section>
 
-    <!-- MEETING ROOM -->
+    <!-- MEETING ROOM (Unchanged) -->
+    <!-- ... (Copy the meeting room HTML from previous code) ... -->
     <section id="scr-meet" class="screen">
       <div class="stage" id="stage">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" autoplay playsinline muted></video>
-        
         <canvas id="whiteboardCanvas"></canvas>
         <div id="captionsBox">...</div>
-        
         <div class="stage-overlay" id="stageOverlay">Waiting for someone to join…</div>
-        
         <div class="meet-top">
           <div class="title-stack"><div class="title" id="meetTitle">Meeting</div><div class="sub" id="meetCode">code</div></div>
-          <div class="spacer"></div>
-          <span class="status" id="meetStatus">…</span>
-          
-          <!-- Buttons for Drawers -->
+          <div class="spacer"></div><span class="status" id="meetStatus">…</span>
           <button class="icon-btn" id="meetParticipantsBtn" title="Participants">👥</button>
           <button class="icon-btn" id="meetAiBtn" title="AI Assistant">🤖</button>
           <button class="icon-btn" id="meetChatBtn" title="Chat">💬</button>
         </div>
-
         <div class="meet-controls">
           <button class="ctl" id="toggleMic"><span>🎤</span><small>Mute</small></button>
           <button class="ctl" id="toggleCam"><span>📷</span><small>Camera</small></button>
-          
-          <!-- HOST ONLY CONTROLS -->
           <button class="ctl" id="hostMuteAll" style="display:none; border-color:var(--danger)"><span>🔇</span><small>Mute All</small></button>
           <button class="ctl" id="hostCamAll" style="display:none; border-color:var(--danger)"><span>🚫</span><small>Cam Off All</small></button>
-          
-          <!-- GUEST ONLY CONTROLS -->
           <button class="ctl" id="raiseHand" style="display:none; background:rgba(91,192,190,0.2)"><span>✋</span><small>Request</small></button>
-
           <button class="ctl" id="toggleScreen"><span>🖥️</span><small>Share</small></button>
           <button class="ctl" id="toggleWhiteboard"><span>🎨</span><small>Board</small></button>
           <button class="ctl" id="toggleCaptions"><span>📝</span><small>Captions</small></button>
           <button class="ctl danger" id="leaveMeet"><span>✖</span><small>Leave</small></button>
         </div>
       </div>
-
-      <!-- Participants Drawer -->
-      <div class="drawer" id="participantsDrawer">
-        <div class="drawer-head">
-          Participants (<span id="participantCount">1</span>)
-          <button class="icon-btn" id="closeParticipantsDrawer">✕</button>
-        </div>
-        <div class="msglist" id="participantsList">
-          <!-- Participant items will be injected here -->
-        </div>
-        <div class="composer" style="justify-content:center;">
-          <button class="btn primary block" id="downloadListBtn" style="font-size:13px;">⬇️ Download List (CSV)</button>
-        </div>
-      </div>
-
-      <!-- Chat Drawer -->
-      <div class="drawer" id="meetChatDrawer">
-        <div class="drawer-head">Meeting Chat<button class="icon-btn" id="closeDrawer">✕</button></div>
-        <div class="msglist" id="meetMsgs"></div>
-        <div class="composer"><button class="icon-btn" id="mImgBtn">🖼️</button><input type="file" id="mImgInput" accept="image/*" style="display:none" /><input id="meetInput" class="input" placeholder="Message…" autocomplete="off" /><button class="btn primary" id="meetSend">Send</button></div>
-      </div>
-
-      <!-- AI Drawer -->
-      <div class="drawer" id="aiDrawer">
-        <div class="drawer-head" style="color:var(--accent-2)">AI Assistant 🤖<button class="icon-btn" id="closeAiDrawer">✕</button></div>
-        <div class="msglist" id="aiMsgs">
-           <div class="bubble ai">
-             <div class="meta">Meetly AI</div>
-             Hello! I am your AI assistant. I am listening to the meeting captions. Click "Generate Summary" below to get notes.
-           </div>
-        </div>
-        <div class="composer">
-          <button class="btn" id="aiSummaryBtn" style="background:rgba(139,91,255,0.2); border-color:var(--accent-2); color:#fff; flex:1">✨ Generate Summary Notes</button>
-        </div>
-      </div>
+      <!-- Drawers (Chat, AI, Participants) Omitted for brevity, use previous version -->
+      <div class="drawer" id="participantsDrawer"><div class="drawer-head">Participants (<span id="participantCount">1</span>)<button class="icon-btn" id="closeParticipantsDrawer">✕</button></div><div class="msglist" id="participantsList"></div><div class="composer" style="justify-content:center;"><button class="btn primary block" id="downloadListBtn" style="font-size:13px;">⬇️ Download List (CSV)</button></div></div>
+      <div class="drawer" id="meetChatDrawer"><div class="drawer-head">Meeting Chat<button class="icon-btn" id="closeDrawer">✕</button></div><div class="msglist" id="meetMsgs"></div><div class="composer"><button class="icon-btn" id="mImgBtn">🖼️</button><input type="file" id="mImgInput" accept="image/*" style="display:none" /><input id="meetInput" class="input" placeholder="Message…" autocomplete="off" /><button class="btn primary" id="meetSend">Send</button></div></div>
+      <div class="drawer" id="aiDrawer"><div class="drawer-head" style="color:var(--accent-2)">AI Assistant 🤖<button class="icon-btn" id="closeAiDrawer">✕</button></div><div class="msglist" id="aiMsgs"><div class="bubble ai"><div class="meta">Meetly AI</div>Hello! I am your AI assistant.</div></div><div class="composer"><button class="btn" id="aiSummaryBtn" style="background:rgba(139,91,255,0.2); border-color:var(--accent-2); color:#fff; flex:1">✨ Generate Summary Notes</button></div></div>
     </section>
     
-    <!-- Other screens (Friends, Schedule, etc.) -->
+    <!-- Other screens (Friends, Schedule, etc.) Omitted for brevity -->
     <section id="scr-friends" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Friends</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Add a friend</label><div class="row"><input id="addFriendInput" class="input" placeholder="username" /><button class="btn" id="addFriendBtn">Add</button></div></div></div><h2 class="sec">Your Friends</h2><div id="friendList" class="list"></div></div></section>
     <section id="scr-join" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Join Meeting</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Meeting code</label><input id="joinCode" class="input" placeholder="abc-def-ghi" /></div><button class="btn primary block" id="doJoin">Join meeting</button></div></div></section>
     <section id="scr-schedule" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Schedule</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Topic</label><input id="schTitle" class="input" /></div><div class="field"><label>When</label><input id="schWhen" class="input" type="datetime-local" /></div><button class="btn primary block" id="schCreate">Create meeting</button></div></div></section>
@@ -273,7 +261,6 @@
   </div>
 
   <div id="toast"></div>
-  
   <script src="app.js"></script>
 </body>
 </html>
