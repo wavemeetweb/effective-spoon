@@ -1,7 +1,9 @@
 window.onerror = function(msg, url, line) {
   var el = document.getElementById('error-overlay');
-  el.style.display = 'block';
-  el.textContent = 'Error: ' + msg + '\nAt: ' + url + ':' + line;
+  if (el) {
+    el.style.display = 'block';
+    el.textContent = 'Error: ' + msg + '\nAt: ' + url + ':' + line;
+  }
   return false;
 };
 
@@ -15,12 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const SUPABASE_URL = 'https://wpihvtfezqlmcdihlyql.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zuIhFz9-r7Bpaa9o3IXyxw_hxgjTd3s';
     
-    var supabase = null;
-    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } else {
-      console.warn("Supabase credentials not set. App will use local fallback.");
-    }
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     var $ = function (s) { return document.querySelector(s); };
     var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -648,7 +645,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   } catch (fatalError) {
     var el = document.getElementById('error-overlay');
-    el.style.display = 'block';
-    el.textContent = 'Fatal Initialization Error: \n' + fatalError.stack;
+    if (el) {
+      el.style.display = 'block';
+      el.textContent = 'Fatal Initialization Error: \n' + fatalError.stack;
+    }
   }
 });
