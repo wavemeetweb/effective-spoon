@@ -2,11 +2,8 @@ const CACHE_NAME = 'meetly-v1';
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
   './app.js',
-  './manifest.json',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
+  './manifest.json'
 ];
 
 self.addEventListener('install', (e) => {
@@ -26,6 +23,35 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.url.startsWith('wss:') || e.request.url.includes('supabase') || e.request.url.includes('peerjs')) return;
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+  // Ignore non-GET requests, Chrome extensions, Supabase, and PeerJS connections
+  if (e.request.method !== 'GET' || 
+      e.request.url.startsWith('chrome-extension') || 
+      e.request.url.startsWith('wss:') ||
+      e.request.url.includes('supabase') ||
+      e.request.url.includes('peerjs')) {
+    return;
+  }
+
+  e.respondWith(
+    fetch(e.request)
+      .then((response) => {
+        // Check if we received a valid response
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
+        // Clone and cache
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, responseToCache);
+        });
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cache if offline
+        return caches.match(e.request).then((cachedResponse) => {
+          // If not in cache, return a valid empty response to prevent crash
+          return cachedResponse || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        });
+      })
+  );
 });
