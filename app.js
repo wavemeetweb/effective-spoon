@@ -14,23 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
        ========================================================= */
     const SUPABASE_URL = 'https://wpihvtfezqlmcdihlyql.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zuIhFz9-r7Bpaa9o3IXyxw_hxgjTd3s';
-    
-    var supabase = null;
-    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } else {
-      console.warn("Supabase credentials not set. App will use local fallback.");
-    }
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     var $ = function (s) { return document.querySelector(s); };
     var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
     
-    var LS = {
-      get: function (k, d) { try { var v = localStorage.getItem('mc:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-      set: function (k, v) { try { localStorage.setItem('mc:' + k, JSON.stringify(v)); } catch (e) {} },
-      del: function(k) { try { localStorage.removeItem('mc:' + k); } catch (e) {} }
-    };
-
     var toastTimer;
     function toast(msg) {
       var t = $('#toast'); if (!t) return;
@@ -51,76 +39,55 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Auth Logic (Supabase)
+       Google Auth Logic
        ========================================================= */
     var ME = { id: '', username: '', name: '' };
-    var isSignUp = false;
 
-    $('#authToggleBtn').addEventListener('click', function(e) {
-      e.preventDefault();
-      isSignUp = !isSignUp;
-      $('#authTitle').textContent = isSignUp ? 'Create Account' : 'Sign In';
-      $('#authBtn').textContent = isSignUp ? 'Sign Up' : 'Sign In';
-      $('#usernameField').style.display = isSignUp ? 'flex' : 'none';
-      $('#authToggleText').textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
-      $('#authToggleBtn').textContent = isSignUp ? 'Sign In' : 'Sign Up';
-      $('#authError').style.display = 'none';
-    });
-
-    async function handleAuth() {
-      var email = $('#authEmail').value.trim();
-      var pass = $('#authPass').value;
-      var username = $('#authUsername').value.trim().toLowerCase();
+    $('#googleLoginBtn').addEventListener('click', async function() {
       var err = $('#authError');
-      
-      if (!email || !pass) { err.textContent = 'Email and password required.'; err.style.display = 'block'; return; }
-      if (isSignUp && !username) { err.textContent = 'Username required.'; err.style.display = 'block'; return; }
-      
-      err.textContent = 'Authenticating...'; err.style.display = 'block'; err.style.color = 'var(--muted)';
-      $('#authBtn').disabled = true;
+      err.textContent = 'Redirecting to Google...'; 
+      err.style.display = 'block'; 
+      err.style.color = 'var(--muted)';
+      $('#googleLoginBtn').disabled = true;
 
-      if (supabase) {
-        if (isSignUp) {
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: email, password: pass, options: { data: { username: username } }
-          });
-          
-          if (authError) { err.textContent = authError.message; err.style.color = 'var(--danger)'; $('#authBtn').disabled = false; return; }
-          
-          if (authData.session) { initUser(authData.user.id, username); }
-          else { err.textContent = 'Check your email for the confirmation link!'; err.style.color = 'var(--ok)'; $('#authBtn').disabled = false; }
-        } else {
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: email, password: pass });
-          
-          if (authError) { err.textContent = authError.message; err.style.color = 'var(--danger)'; $('#authBtn').disabled = false; return; }
-          
-          const { data: profile } = await supabase.from('profiles').select('username').eq('id', authData.user.id).single();
-          if (profile) { initUser(authData.user.id, profile.username); }
-          else { initUser(authData.user.id, email.split('@')[0]); }
-        }
-      } else {
-        // Local Fallback
-        toast("Supabase not configured. Using local fallback.");
-        err.textContent = 'Local fallback login...'; 
-        setTimeout(() => {
-          var fakeUser = email.split('@')[0];
-          initUser('local-' + fakeUser, fakeUser);
-        }, 500);
-      }
-    }
-
-    $('#authBtn').addEventListener('click', handleAuth);
-    $('#authPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
-
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          supabase.from('profiles').select('username').eq('id', session.user.id).single().then(({ data }) => {
-            if (data) initUser(session.user.id, data.username);
-          });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
-    }
+      
+      if (error) {
+        err.textContent = error.message;
+        err.style.color = 'var(--danger)';
+        $('#googleLoginBtn').disabled = false;
+      }
+    });
+
+    // Listen for Auth Changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user) {
+        let username = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+        username = username.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        // Check if profile exists
+        const { data: profile } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
+        
+        if (profile) {
+          initUser(session.user.id, profile.username);
+        } else {
+          // Create profile if missing
+          await supabase.from('profiles').insert({ id: session.user.id, username: username });
+          initUser(session.user.id, username);
+        }
+      } else {
+        show('scr-login');
+      }
+    });
 
     function initUser(userId, username) {
       ME.id = userId; ME.username = username; ME.name = username.charAt(0).toUpperCase() + username.slice(1);
@@ -130,8 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     $('#logoutBtn').addEventListener('click', async function() {
       if (!confirm('Log out of Meetly?')) return;
-      if (supabase) await supabase.auth.signOut();
-      location.reload();
+      await supabase.auth.signOut();
     });
 
     /* =========================================================
@@ -245,10 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateFriendsStatus() {
-      var friends = LS.get('friends', []); // Still using local for presence, but fetched from DB
-      friends.forEach(function(f) {
-        var isOnline = friendConns[f.username] && friendConns[f.username].open;
-        var els = document.querySelectorAll('.friend-status-' + f.username);
+      var friends = [];
+      if (supabase) {
+        // For presence, we still rely on the active PeerJS connection map
+      }
+      Object.keys(friendConns).forEach(function(uname) {
+        var isOnline = friendConns[uname] && friendConns[uname].open;
+        var els = document.querySelectorAll('.friend-status-' + uname);
         els.forEach(function(el) {
           el.textContent = isOnline ? '🟢 Online' : '⚪ Offline';
           el.style.color = isOnline ? 'var(--ok)' : 'var(--muted)';
@@ -263,19 +232,13 @@ document.addEventListener('DOMContentLoaded', function() {
       var box = $('#friendList'); if (!box) return;
       box.innerHTML = '<div class="empty">Loading friends...</div>';
       
-      var friends = [];
-      if (supabase) {
-        const { data, error } = await supabase
-          .from('friends')
-          .select('friend_id, profiles!friends_friend_id_fkey(username)')
-          .eq('user_id', ME.id);
-          
-        if (data) {
-          friends = data.map(d => ({ username: d.profiles.username, id: d.friend_id }));
-        }
-      } else {
-        friends = LS.get('friends', []);
-      }
+      const { data, error } = await supabase
+        .from('friends')
+        .select('friend_id, profiles!friends_friend_id_fkey(username)')
+        .eq('user_id', ME.id);
+        
+      let friends = [];
+      if (data) friends = data.map(d => ({ username: d.profiles.username, id: d.friend_id }));
       
       box.innerHTML = '';
       if (friends.length === 0) {
@@ -296,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var delBtn = document.createElement('button'); delBtn.className = 'icon-btn'; delBtn.textContent = '🗑';
         delBtn.addEventListener('click', async function() {
           if (!confirm('Remove friend?')) return;
-          if (supabase) { await supabase.from('friends').delete().eq('user_id', ME.id).eq('friend_id', f.id); }
+          await supabase.from('friends').delete().eq('user_id', ME.id).eq('friend_id', f.id);
           renderFriends();
         });
         
@@ -310,19 +273,17 @@ document.addEventListener('DOMContentLoaded', function() {
       var uname = $('#addFriendInput').value.trim().toLowerCase();
       if (!uname || uname === ME.username) { toast('Invalid username'); return; }
       
-      if (supabase) {
-        const { data: profile, error } = await supabase.from('profiles').select('id').eq('username', uname).single();
-        if (!profile) { toast('User not found'); return; }
-        
-        const { error: insertError } = await supabase.from('friends').insert({ user_id: ME.id, friend_id: profile.id });
-        if (insertError) {
-          if (insertError.code === '23505') toast('Already friends!');
-          else toast('Error: ' + insertError.message);
-          return;
-        }
-        
-        $('#addFriendInput').value = ''; renderFriends(); connectToFriend(uname); toast('Friend added!');
+      const { data: profile, error } = await supabase.from('profiles').select('id').eq('username', uname).single();
+      if (!profile) { toast('User not found'); return; }
+      
+      const { error: insertError } = await supabase.from('friends').insert({ user_id: ME.id, friend_id: profile.id });
+      if (insertError) {
+        if (insertError.code === '23505') toast('Already friends!');
+        else toast('Error: ' + insertError.message);
+        return;
       }
+      
+      $('#addFriendInput').value = ''; renderFriends(); connectToFriend(uname); toast('Friend added!');
     });
 
     /* =========================================================
@@ -334,47 +295,41 @@ document.addEventListener('DOMContentLoaded', function() {
     function openFriendChat(username) {
       currentFriend = username; $('#fcTitle').textContent = username; $('#fcInput').value = ''; show('scr-friend-chat');
       
-      if (supabase) {
-        loadMessages(username);
-        if (messageSubscription) supabase.removeChannel(messageSubscription);
-        
-        messageSubscription = supabase
-          .channel('public:messages')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${ME.id}` }, payload => {
-            if (payload.new.sender_id === ME.id || payload.new.sender_id === currentFriend) {
-              appendBubble($('#fcMsgList'), payload.new, ME.username);
-            }
-          })
-          .subscribe();
-      }
+      loadMessages(username);
+      if (messageSubscription) supabase.removeChannel(messageSubscription);
+      
+      messageSubscription = supabase
+        .channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${ME.id}` }, payload => {
+          if (payload.new.sender_id === ME.id || payload.new.sender_id === currentFriend) {
+            appendBubble($('#fcMsgList'), payload.new, ME.username);
+          }
+        })
+        .subscribe();
     }
 
     async function loadMessages(friendUsername) {
       var box = $('#fcMsgList'); if (!box) return;
       box.innerHTML = '<div class="bubble sys">Loading messages...</div>';
       
-      if (supabase) {
-        const { data: profile } = await supabase.from('profiles').select('id').eq('username', friendUsername).single();
-        if (!profile) return;
+      const { data: profile } = await supabase.from('profiles').select('id').eq('username', friendUsername).single();
+      if (!profile) return;
+      
+      const { data: msgs } = await supabase.from('messages').select('*')
+        .or(`and(sender_id.eq.${ME.id},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${ME.id})`)
+        .order('created_at', { ascending: true }).limit(100);
         
-        const { data: msgs } = await supabase.from('messages').select('*')
-          .or(`and(sender_id.eq.${ME.id},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${ME.id})`)
-          .order('created_at', { ascending: true }).limit(100);
-          
-        box.innerHTML = '';
-        if (!msgs || msgs.length === 0) { box.innerHTML = '<div class="bubble sys">Say hi to ' + friendUsername + '!</div>'; }
-        else { msgs.forEach(m => appendBubble(box, m, ME.username)); }
-      }
+      box.innerHTML = '';
+      if (!msgs || msgs.length === 0) { box.innerHTML = '<div class="bubble sys">Say hi to ' + friendUsername + '!</div>'; }
+      else { msgs.forEach(m => appendBubble(box, m, ME.username)); }
     }
 
     async function sendFriendMsg() {
       var inp = $('#fcInput'); var v = inp.value.trim(); if (!v) return;
       
-      if (supabase) {
-        const { data: profile } = await supabase.from('profiles').select('id').eq('username', currentFriend).single();
-        if (!profile) return;
-        await supabase.from('messages').insert({ sender_id: ME.id, receiver_id: profile.id, content: v });
-      }
+      const { data: profile } = await supabase.from('profiles').select('id').eq('username', currentFriend).single();
+      if (!profile) return;
+      await supabase.from('messages').insert({ sender_id: ME.id, receiver_id: profile.id, content: v });
       inp.value = '';
     }
 
@@ -415,25 +370,21 @@ document.addEventListener('DOMContentLoaded', function() {
         this.code = code; this.name = name || ('Group ' + code);
         $('#gTitle').textContent = this.name; $('#gSub').textContent = code; $('#msgInput').value = ''; show('scr-group');
         
-        if (supabase) {
-          const { data } = await supabase.from('messages').select('*').eq('group_id', code).order('created_at', { ascending: true }).limit(50);
-          $('#msgList').innerHTML = '';
-          if (data && data.length > 0) data.forEach(m => appendBubble($('#msgList'), m, ME.username));
-          
-          if (this.subscription) supabase.removeChannel(this.subscription);
-          this.subscription = supabase
-            .channel('group:' + code)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${code}` }, payload => {
-              appendBubble($('#msgList'), payload.new, ME.username);
-            })
-            .subscribe();
-        }
+        const { data } = await supabase.from('messages').select('*').eq('group_id', code).order('created_at', { ascending: true }).limit(50);
+        $('#msgList').innerHTML = '';
+        if (data && data.length > 0) data.forEach(m => appendBubble($('#msgList'), m, ME.username));
+        
+        if (this.subscription) supabase.removeChannel(this.subscription);
+        this.subscription = supabase
+          .channel('group:' + code)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${code}` }, payload => {
+            appendBubble($('#msgList'), payload.new, ME.username);
+          })
+          .subscribe();
       },
       
       send: async function (text, imgData) {
-        if (supabase) {
-          await supabase.from('messages').insert({ sender_id: ME.id, group_id: this.code, content: text || null, image_url: imgData || null });
-        }
+        await supabase.from('messages').insert({ sender_id: ME.id, group_id: this.code, content: text || null, image_url: imgData || null });
       },
       
       close: function () { if (this.subscription) supabase.removeChannel(this.subscription); }
@@ -563,93 +514,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
       setStatus: function (t) { $('#meetStatus').textContent = t; },
       overlay: function (t) { var o = $('#stageOverlay'); if (o) { o.textContent = t; o.style.display = 'flex'; } },
-      hideOverlay: function () { var o = $('#stageOverlay'); if (o) o.style.display = 'none'; },
-
-      send: function (text, imgData) {
-        if (this.conn && this.conn.open) { this.conn.send({ type: 'chat', text: text || '', img: imgData || null, sender_id: ME.id }); }
-        appendBubble($('#meetMsgs'), { id: uid(), sender_id: ME.id, content: text, image_url: imgData, created_at: new Date() }, ME.username);
-      },
-
-      toggleMic: function () { if (!this.stream) return; var t = this.stream.getAudioTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleMic').classList.toggle('off', !t.enabled); } },
-      toggleCam: function () { if (!this.stream) return; var t = this.stream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; $('#toggleCam').classList.toggle('off', !t.enabled); } },
-
-      leave: function () { this.ended = true; this._cleanup(); show('scr-home'); },
-
-      _cleanup: function () {
-        if (this.conn) { try { this.conn.close(); } catch (e) {} this.conn = null; }
-        if (this.call) { try { this.call.close(); } catch (e) {} this.call = null; }
-        if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
-        if (this.stream) { this.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); this.stream = null; }
-        $('#remoteVideo').srcObject = null; $('#localVideo').srcObject = null;
-      }
-    };
-
-    /* =========================================================
-       Initialize & Wire UI
-       ========================================================= */
-    $('#scr-home').addEventListener('click', function (e) {
-      var t = e.target.closest('[data-act]'); if (!t) return;
-      var act = t.getAttribute('data-act');
-      if (act === 'new') Meet.join(newCode(), 'Instant meeting');
-      else if (act === 'join') { $('#joinCode').value = ''; show('scr-join'); }
-      else if (act === 'schedule') { show('scr-schedule'); }
-      else if (act === 'groups') { show('scr-groups'); }
-      else if (act === 'friends') { renderFriends(); show('scr-friends'); }
-    });
-
-    document.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-back]'); if (!b) return;
-      var dest = b.getAttribute('data-back') || 'scr-home';
-      if (dest === 'scr-groups') Group.close();
-      show(dest);
-    });
-
-    $('#doJoin').addEventListener('click', function () {
-      var code = $('#joinCode').value.trim();
-      if (!norm(code)) { toast('Enter code'); return; }
-      Meet.join(code, 'Meeting');
-    });
-
-    $('#toggleMic').addEventListener('click', function () { Meet.toggleMic(); });
-    $('#toggleCam').addEventListener('click', function () { Meet.toggleCam(); });
-    $('#leaveMeet').addEventListener('click', function () { Meet.leave(); });
-    $('#meetChatBtn').addEventListener('click', function () { $('#meetChatDrawer').classList.toggle('open'); });
-    $('#closeDrawer').addEventListener('click', function () { $('#meetChatDrawer').classList.remove('open'); });
-    
-    function sendMeetMsg() {
-      var v = $('#meetInput').value.trim(); if (!v) return;
-      Meet.send(v); $('#meetInput').value = '';
-    }
-    $('#meetSend').addEventListener('click', sendMeetMsg);
-    $('#meetInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMeetMsg(); });
-    setupImageUpload('mImgBtn', 'mImgInput', function(data) { Meet.send('', data); });
-
-    $('#newGroupBtn').addEventListener('click', function () {
-      var name = prompt('Group name:'); if (!name) return;
-      Group.open(newCode(), name);
-    });
-    $('#joinGroupBtn').addEventListener('click', function () {
-      var code = $('#grpCode').value.trim(); if (!code) return;
-      Group.open(code, 'Group ' + code);
-    });
-    function sendGroupMsg() {
-      var v = $('#msgInput').value.trim(); if (!v) return;
-      Group.send(v); $('#msgInput').value = '';
-    }
-    $('#sendMsg').addEventListener('click', sendGroupMsg);
-    $('#msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendGroupMsg(); });
-    setupImageUpload('gImgBtn', 'gImgInput', function(data) { Group.send('', data); });
-
-    // Register Service Worker
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed', err));
-      });
-    }
-
-  } catch (fatalError) {
-    var el = document.getElementById('error-overlay');
-    el.style.display = 'block';
-    el.textContent = 'Fatal Initialization Error: \n' + fatalError.stack;
-  }
-});
+      hideOverlay: function () {
