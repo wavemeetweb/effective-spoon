@@ -126,6 +126,11 @@
     .holo-ring:nth-child(2) {background: var(--accent-hi); box-shadow: 0 0 8px var(--accent-hi); opacity: 0.6;}
     .holo-footer {text-align: center; margin-top: 25px; font-family: monospace; font-size: 12px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;}
 
+    /* NEW: AI Modal Styles */
+    .modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(4,6,12,.72); z-index: 150; }
+    .modal.open { display: flex; }
+    .modal .card { width: 100%; max-width: 500px; margin: auto; }
+
     @media (max-width:480px){
       .hero h1{font-size:22px} #localVideo{width:30vw}
       .ctl{min-width:56px;min-height:50px;padding:4px 6px}
@@ -276,20 +281,6 @@
         <div class="msglist" id="meetMsgs"></div>
         <div class="composer"><button class="icon-btn" id="mImgBtn">🖼️</button><input type="file" id="mImgInput" accept="image/*" style="display:none" /><input id="meetInput" class="input" placeholder="Message…" autocomplete="off" /><button class="btn primary" id="meetSend">Send</button></div>
       </div>
-
-      <!-- AI Drawer -->
-      <div class="drawer" id="aiDrawer">
-        <div class="drawer-head" style="color:var(--accent-2)">AI Assistant 🤖<button class="icon-btn" id="closeAiDrawer">✕</button></div>
-        <div class="msglist" id="aiMsgs">
-           <div class="bubble ai">
-             <div class="meta">Meetly AI</div>
-             Hello! I am your AI assistant. I am listening to the meeting captions. Click "Generate Summary" below to get notes.
-           </div>
-        </div>
-        <div class="composer">
-          <button class="btn" id="aiSummaryBtn" style="background:rgba(139,91,255,0.2); border-color:var(--accent-2); color:#fff; flex:1">✨ Generate Summary Notes</button>
-        </div>
-      </div>
     </section>
     
     <!-- Other screens -->
@@ -298,6 +289,29 @@
     <section id="scr-schedule" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Schedule</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Topic</label><input id="schTitle" class="input" /></div><div class="field"><label>When</label><input id="schWhen" class="input" type="datetime-local" /></div><button class="btn primary block" id="schCreate">Create meeting</button></div></div></section>
     <section id="scr-groups" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-home">←</button><div class="title">Text Groups</div></div><div class="scroll narrow"><div class="card"><div class="field"><label>Join group</label><div class="row"><input id="grpCode" class="input" placeholder="code" /><button class="btn" id="joinGroupBtn">Join</button></div></div></div><div id="groupList" class="list"></div></div></section>
     <section id="scr-group" class="screen"><div class="topbar"><button class="icon-btn" data-back="scr-groups">←</button><div class="title-stack"><div class="title" id="gTitle">Group</div><div class="sub" id="gSub">code</div></div><div class="spacer"></div><span class="status" id="gStatus">…</span></div><div class="msglist" id="msgList"></div><div class="composer"><button class="icon-btn" id="gImgBtn">🖼️</button><input type="file" id="gImgInput" accept="image/*" style="display:none" /><input id="msgInput" class="input" placeholder="Message…" /><button class="btn primary" id="sendMsg">Send</button></div></section>
+  </div>
+
+  <!-- NEW: AI Chat Modal -->
+  <div class="modal" id="aiModal">
+    <div class="card holo-card">
+      <div class="holo-header" style="justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+        <span style="color: var(--accent-2); font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+          🤖 Meetly AI
+        </span>
+        <button class="icon-btn" id="closeAiModal" style="width: 30px; height: 30px; font-size: 14px; border: none; background: transparent;">✕</button>
+      </div>
+      
+      <div id="aiChatBox" style="height: 250px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px; font-size: 14px; line-height: 1.5; border: 1px solid var(--stroke);">
+        <div style="color: var(--muted); text-align: center; margin-top: 90px;" id="aiPlaceholder">
+          Ask me to summarize the meeting, or ask a specific question!
+        </div>
+      </div>
+
+      <div class="row">
+        <input id="aiPromptInput" class="input" placeholder="Type your prompt here..." autocomplete="off" />
+        <button class="btn primary" id="aiSendBtn">Ask</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast"></div>
