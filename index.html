@@ -8,18 +8,22 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎥</text></svg>">
 
-  <!-- Load Supabase and PeerJS -->
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
   
-  <!-- Load WebLLM -->
   <script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
     window.webllm = webllm; 
   </script>
 
   <style>
-    *,*::before,*::after{ will-change:auto !important; transform:none !important; filter:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; perspective:none !important; backface-visibility:visible !important; mix-blend-mode:normal !important; isolation:auto !important; animation:none !important; transition-property:background-color,border-color,color,box-shadow !important; transition-duration:.12s !important; transition-timing-function:linear !important; }
+    /* FIXED: Removed transform:none to allow video rendering */
+    *,*::before,*::after{ 
+      will-change: auto; 
+      backdrop-filter: none !important; 
+      -webkit-backdrop-filter: none !important;
+      animation: none !important;
+    }
     
     :root{
       --fg:#eef1f7; --muted:#a3acc4; --glass:rgba(255,255,255,.06); --glass-2:rgba(255,255,255,.11);
@@ -77,8 +81,9 @@
     .item .s{font-size:12.5px;color:var(--muted);margin-top:3px;font-family:ui-monospace,Menlo,monospace}
     .empty{text-align:center;color:var(--muted);font-size:13.5px;padding:26px 14px;border:1px dashed var(--stroke);border-radius:16px;}
 
+    /* FIXED: Added explicit z-index to ensure video renders correctly */
     #scr-meet{position:relative} .stage{position:relative;flex:1 1 auto;min-height:0;background:#05070d;overflow:hidden;}
-    #remoteVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d;}
+    #remoteVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d; z-index: 1;}
     #localVideo{position:absolute;right:12px;bottom:calc(94px + var(--safe-b));width:26vw;min-width:104px;max-width:170px;aspect-ratio:3/4;object-fit:cover;border-radius:14px;border:1px solid var(--stroke-2);background:#000;z-index:3;}
     
     #captionsBox { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 18px; font-weight: 600; text-align: center; max-width: 80%; z-index: 10; display: none; border: 1px solid var(--accent-hi); box-shadow: 0 0 10px rgba(91,192,190,0.3); }
