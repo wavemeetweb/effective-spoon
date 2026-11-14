@@ -97,9 +97,13 @@ document.addEventListener('DOMContentLoaded', function() {
       err.textContent = 'Redirecting to Google...'; err.style.display = 'block'; err.style.color = 'var(--muted)';
       $('#googleLoginBtn').disabled = true;
 
+      // Explicit scopes fix the unexpected_failure error for Workspace accounts
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: 'https://ai-meetly.vercel.app' }
+        options: { 
+          redirectTo: 'https://ai-meetly.vercel.app',
+          scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
+        }
       });
       
       if (error) { err.textContent = error.message; err.style.color = 'var(--danger)'; $('#googleLoginBtn').disabled = false; }
@@ -642,6 +646,13 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#sendMsg').addEventListener('click', sendGroupMsg);
     $('#msgInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendGroupMsg(); });
     setupImageUpload('gImgBtn', 'gImgInput', function(data) { Group.send('', data); });
+
+    // Register Service Worker safely
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed', err));
+      });
+    }
 
   } catch (fatalError) {
     var el = document.getElementById('error-overlay');
