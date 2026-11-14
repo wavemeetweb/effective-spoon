@@ -1,4 +1,9 @@
 window.onerror = function(msg, url, line) {
+  // Ignore AI/WebGPU errors so they don't break the whole app
+  if (msg.includes('window is not defined') || url.includes('worker')) {
+    console.warn("WebLLM failed to load.", msg);
+    return true; 
+  }
   var el = document.getElementById('error-overlay');
   if (el) { el.style.display = 'block'; el.textContent = 'Error: ' + msg + '\nAt: ' + url + ':' + line; }
   return false;
@@ -33,11 +38,40 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Guest URL Logic (NEW)
+       Inline WebLLM AI Helper (No Worker - Lighter Model)
+       ========================================================= */
+    let webllmEngine = null;
+    let isAiReady = false;
+    let isAiLoading = false;
+
+    async function initWebAI() {
+      if (isAiReady) return;
+      try {
+        if (!navigator.gpu) {
+          console.warn("WebGPU not supported. AI features disabled.");
+          return;
+        }
+
+        const { CreateMLCEngine } = window.webllm;
+        
+        // LIGHTER MODEL: Qwen 0.5B (~278MB download)
+        webllmEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+          initProgressCallback: (progress) => {
+             const loadingEl = document.getElementById('ai-loading-msg');
+             if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div><div style="font-size:12px; color:var(--accent-hi);">${progress.text}</div>`;
+          }
+        });
+        isAiReady = true;
+      } catch (e) {
+        console.error("AI Init failed:", e);
+      }
+    }
+
+    /* =========================================================
+       Guest URL Logic
        ========================================================= */
     var pendingMeetingCode = '';
     
-    // Check URL for #m=code
     function checkMeetingLink() {
       const hash = location.hash;
       if (hash.includes('m=')) {
@@ -53,8 +87,6 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#guestJoinBtn').addEventListener('click', function() {
       let guestName = $('#guestNameInput').value.trim();
       if (!guestName) { toast("Please enter your name"); return; }
-      
-      // Set up Guest Identity
       ME.id = 'guest-' + uid();
       ME.name = guestName;
       ME.username = guestName.replace(/\s/g, '').toLowerCase() + '_guest';
@@ -111,16 +143,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (error) { err.textContent = error.message; err.style.color = 'var(--danger)'; $('#googleLoginBtn').disabled = false; }
     });
 
-    // Initial Load Routing
     show('scr-login');
     if (supabase) {
       supabase.auth.getSession().then(({ data: { session } }) => { 
-        if (session) {
-          handleUserLogin(session.user); 
-        } else {
-          if (hasPendingLink) show('scr-guest-join');
-          else show('scr-login');
-        }
+        if (session) handleUserLogin(session.user); 
+        else { if (hasPendingLink) show('scr-guest-join'); else show('scr-login'); }
       });
 
       supabase.auth.onAuthStateChange((event, session) => {
@@ -146,23 +173,19 @@ document.addEventListener('DOMContentLoaded', function() {
       $('#heroName').textContent = ME.name; $('#userPill').textContent = ME.name;
       
       show('scr-home'); 
-      
       try { 
         initMainPeer(); 
         if (typeof renderFriends === 'function') renderFriends(); 
         if (typeof initWebAI === 'function') initWebAI();
       } catch (e) { console.error("Init failed:", e); }
 
-      // If they logged in while having a pending meeting link
-      if (hasPendingLink) {
-        Meet.join(pendingMeetingCode, 'Meeting');
-      }
+      if (hasPendingLink) Meet.join(pendingMeetingCode, 'Meeting');
     }
 
     $('#logoutBtn').addEventListener('click', async function() { if (!confirm('Log out?')) return; if (supabase) await supabase.auth.signOut(); location.reload(); });
 
     /* =========================================================
-       WebRTC Audio Tuning & TURN Servers
+       WebRTC & Main Peer
        ========================================================= */
     var AUDIO_CONSTRAINTS = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 }, googEchoCancellation: true, googAutoGainControl: true, googNoiseSuppression: true, googHighpassFilter: true };
     function tuneOpusSdp(sdp) { return sdp ? sdp.replace(/a=fmtp:(\d+) useinbandfec=1/gi, 'a=fmtp:$1 useinbandfec=1;usedtx=0;stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;minptime=10') : sdp; }
@@ -171,9 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var PEER_OPTS = { debug: 0, config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }, { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' } ], sdpSemantics: 'unified-plan' } };
 
-    /* =========================================================
-       Main Peer (Friends)
-       ========================================================= */
     var mainPeer = null;
     function initMainPeer() {
       if (mainPeer) mainPeer.destroy();
@@ -182,28 +202,9 @@ document.addEventListener('DOMContentLoaded', function() {
       mainPeer.on('call', function(incoming) { if (confirm('Incoming call from ' + incoming.peer.replace('mc-user-', '') + '. Accept?')) { Meet.acceptDirectCall(incoming); } else { incoming.close(); } });
     }
 
-    /* =========================================================
-       WebLLM AI Helper
-       ========================================================= */
-    let aiWorker = null;
-    let isAiReady = false;
-    let isAiLoading = false;
-
-    function initWebAI() {
-      if (aiWorker) return;
-      try {
-        aiWorker = new Worker('worker.js', { type: 'module' });
-        aiWorker.onmessage = function(event) {
-          const { type, data } = event.data;
-          const aiBox = $('#aiMsgs');
-          const loadingEl = document.getElementById('ai-loading-msg');
-          if (type === 'progress') { if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div><div style="font-size:12px; color:var(--accent-hi);">${data}</div>`; } 
-          else if (type === 'loaded') { isAiReady = true; isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>✅ AI Ready! Click "Generate Summary" again.`; } 
-          else if (type === 'summary') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>${data.replace(/\n/g, '<br>')}`; aiBox.scrollTop = aiBox.scrollHeight; } 
-          else if (type === 'error') { isAiLoading = false; if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${data}`; }
-        };
-      } catch (e) { console.warn("Failed to init WebLLM:", e); }
-    }
+    // Simple friends placeholder
+    function renderFriends() { $('#friendList').innerHTML = '<div class="empty">Add friends via the search bar above.</div>'; }
+    $('#addFriendBtn').addEventListener('click', function() { toast("Friend system requires a full database setup."); });
 
     /* =========================================================
        Meeting Logic
@@ -394,12 +395,36 @@ document.addEventListener('DOMContentLoaded', function() {
         this.recognition.start(); $('#toggleCaptions').classList.add('active');
       },
 
-      generateSummary: function() {
+      generateSummary: async function() {
         const aiBox = $('#aiMsgs');
         if (this.transcript.trim() === '') { aiBox.innerHTML += `<div class="bubble ai"><div class="meta">Meetly AI</div>No speech detected yet. Please turn on captions and speak!</div>`; aiBox.scrollTop = aiBox.scrollHeight; return; }
         if (isAiLoading) return; isAiLoading = true;
-        aiBox.innerHTML += `<div class="bubble ai" id="ai-loading-msg"><div class="meta">Meetly AI</div>Preparing AI...</div>`; aiBox.scrollTop = aiBox.scrollHeight;
-        if (!isAiReady) aiWorker.postMessage({ action: 'load' }); else aiWorker.postMessage({ action: 'generate', text: this.transcript });
+        
+        aiBox.innerHTML += `<div class="bubble ai" id="ai-loading-msg"><div class="meta">Meetly AI</div>${isAiReady ? 'Analyzing transcript...' : 'Preparing AI Model (This may take a minute)...'}</div>`; 
+        aiBox.scrollTop = aiBox.scrollHeight;
+
+        if (!isAiReady) {
+          await initWebAI();
+          if (!isAiReady) {
+             document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>⚠️ AI could not load. Your browser might not support WebGPU.`;
+             isAiLoading = false;
+             return;
+          }
+        }
+
+        try {
+          const messages = [
+            { role: "system", content: "You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items." },
+            { role: "user", content: this.transcript }
+          ];
+          const reply = await webllmEngine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
+          
+          document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>${reply.choices[0].message.content.replace(/\n/g, '<br>')}`;
+          isAiLoading = false;
+        } catch (err) {
+          document.getElementById('ai-loading-msg').innerHTML = `<div class="meta">Meetly AI</div>⚠️ Error: ${err.message}`;
+          isAiLoading = false;
+        }
       },
 
       setStatus: function (t) { $('#meetStatus').textContent = t; },
@@ -412,17 +437,8 @@ document.addEventListener('DOMContentLoaded', function() {
       },
 
       leave: function () { 
-        this.ended = true; 
-        if (this.recognition) this.recognition.stop(); 
-        this._cleanup(); 
-        
-        // NEW: Redirect Guests to login
-        if (ME.id && ME.id.startsWith('guest-')) {
-          show('scr-login');
-          toast("Sign up to save your meeting history!");
-        } else {
-          show('scr-home'); 
-        }
+        this.ended = true; if (this.recognition) this.recognition.stop(); this._cleanup(); 
+        if (ME.id && ME.id.startsWith('guest-')) { show('scr-login'); toast("Sign up to save your meeting history!"); } else { show('scr-home'); }
       },
 
       _cleanup: function () {
@@ -438,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     /* =========================================================
-       UI Binding (Omitted some boilerplate for brevity, keep from previous)
+       UI Binding
        ========================================================= */
     function appendBubble(container, m, myUsername) {
       if (!container) return;
