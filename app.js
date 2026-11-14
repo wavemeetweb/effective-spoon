@@ -1,5 +1,4 @@
 window.onerror = function(msg, url, line) {
-  // Ignore WebGPU errors so they don't break the app
   if (msg.includes('window is not defined') || msg.includes('WebGPU') || url.includes('worker')) {
     console.warn("Optional AI feature failed. Ignoring.", msg);
     return true; 
@@ -35,36 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function show(id) { $$('.screen').forEach(function (s) { s.classList.toggle('active', s.id === id); }); }
 
     /* =========================================================
-       Hybrid AI Engine
+       Cloud AI Engine (Gemini API Only)
        ========================================================= */
-    let webllmEngine = null;
-    let isAiReady = false;
     let isAiLoading = false;
 
     // ⚠️ PASTE YOUR FREE GEMINI API KEY HERE ⚠️
     const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'; 
-
-    async function initWebAI() {
-      if (isAiReady) return;
-      
-      if (!navigator.gpu) {
-        console.warn("WebGPU not supported. AI will use Cloud Fallback.");
-        return; 
-      }
-
-      try {
-        const { CreateMLCEngine } = window.webllm;
-        webllmEngine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
-          initProgressCallback: (progress) => {
-             const loadingEl = document.getElementById('ai-loading-msg');
-             if (loadingEl) loadingEl.innerHTML = `<div class="meta">Meetly AI</div><div style="font-size:12px; color:var(--accent-hi);">${progress.text}</div>`;
-          }
-        });
-        isAiReady = true;
-      } catch (e) {
-        console.error("WebLLM failed to load:", e);
-      }
-    }
 
     /* =========================================================
        Guest URL Logic
@@ -175,8 +150,6 @@ document.addEventListener('DOMContentLoaded', function() {
       try { 
         initMainPeer(); 
         if (typeof renderFriends === 'function') renderFriends(); 
-        // Delay AI by 3 seconds so it doesn't crash the UI
-        setTimeout(() => { if (typeof initWebAI === 'function') initWebAI(); }, 3000);
       } catch (e) { console.error("Init failed:", e); }
 
       if (hasPendingLink) Meet.join(pendingMeetingCode, 'Meeting');
@@ -185,20 +158,39 @@ document.addEventListener('DOMContentLoaded', function() {
     $('#logoutBtn').addEventListener('click', async function() { if (!confirm('Log out?')) return; if (supabase) await supabase.auth.signOut(); location.reload(); });
 
     /* =========================================================
-       WebRTC
+       WebRTC & PeerJS
        ========================================================= */
     var AUDIO_CONSTRAINTS = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 }, googEchoCancellation: true, googAutoGainControl: true, googNoiseSuppression: true, googHighpassFilter: true };
     function tuneOpusSdp(sdp) { return sdp ? sdp.replace(/a=fmtp:(\d+) useinbandfec=1/gi, 'a=fmtp:$1 useinbandfec=1;usedtx=0;stereo=1;sprop-stereo=1;maxaveragebitrate=128000;maxplaybackrate=48000;minptime=10') : sdp; }
     function tunePc(pc) { if (!pc || pc.__audioTuned) return; pc.__audioTuned = true; var origOffer = pc.createOffer.bind(pc), origAnswer = pc.createAnswer.bind(pc); pc.createOffer = function (o) { return origOffer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); }; pc.createAnswer = function (o) { return origAnswer(o).then(function (d) { d.sdp = tuneOpusSdp(d.sdp); return d; }); }; }
     (function installPcHook() { if (typeof RTCPeerConnection === 'undefined') return; var Orig = RTCPeerConnection; function Wrapped(cfg) { var pc = new Orig(cfg); tunePc(pc); return pc; } Wrapped.prototype = Orig.prototype; try { Object.setPrototypeOf(Wrapped, Orig); } catch (e) {} window.RTCPeerConnection = Wrapped; })();
 
-    var PEER_OPTS = { debug: 0, config: { iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }, { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' } ], sdpSemantics: 'unified-plan' } };
+    var PEER_OPTS = { 
+      debug: 0, 
+      config: { 
+        iceServers: [ 
+          { urls: 'stun:stun.l.google.com:19302' }, 
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }, 
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' } 
+        ], 
+        sdpSemantics: 'unified-plan' 
+      } 
+    };
 
     var mainPeer = null;
     function initMainPeer() {
       if (mainPeer) mainPeer.destroy();
       var safeUsername = ME.username.replace(/[^a-zA-Z0-9]/g, ''); 
       mainPeer = new Peer('mc-user-' + safeUsername, PEER_OPTS);
+      
+      // Handle PeerJS WebSocket errors gracefully
+      mainPeer.on('error', function(err) {
+        console.error("PeerJS Error:", err);
+        if (err.type === 'network' || err.type === 'server-error') {
+          toast("Signaling server is busy. Please try again in a moment.");
+        }
+      });
+
       mainPeer.on('call', function(incoming) { if (confirm('Incoming call from ' + incoming.peer.replace('mc-user-', '') + '. Accept?')) { Meet.acceptDirectCall(incoming); } else { incoming.close(); } });
     }
 
@@ -227,6 +219,18 @@ document.addEventListener('DOMContentLoaded', function() {
         this.setStatus('Waiting…'); this.overlay('Waiting for someone to join…'); 
         
         this.peer = new Peer('mc-mtg-' + norm(code), PEER_OPTS);
+        
+        // Handle PeerJS errors during meeting join
+        this.peer.on('error', function (err) {
+           if (err.type === 'unavailable-id') {
+             try { this.peer.destroy(); } catch (e) {} this.peer = null; 
+             Meet.connectGuest('mc-mtg-' + norm(code));
+           } else if (err.type === 'network' || err.type === 'server-error') {
+             Meet.setStatus('Network Error');
+             Meet.overlay('Could not connect to signaling server. Please refresh.');
+           }
+        }.bind(this));
+
         this.peer.on('open', function () { 
           this.isHost = true; 
           this.setStatus('Hosting (Teacher)'); 
@@ -241,13 +245,21 @@ document.addEventListener('DOMContentLoaded', function() {
           Meet.call = incoming; try { incoming.answer(Meet.stream); } catch (e) {}
           Meet.pipeCall(incoming);
         });
-        this.peer.on('error', function (err) { if (err.type === 'unavailable-id') { try { this.peer.destroy(); } catch (e) {} this.peer = null; Meet.connectGuest('mc-mtg-' + norm(code)); } }.bind(this));
         
         this.setupWhiteboard();
       },
 
       connectGuest: function (targetId) {
         this.peer = new Peer(PEER_OPTS);
+        
+        this.peer.on('error', function(err) {
+          if (err.type === 'peer-unavailable') { 
+            Meet.setStatus('Not found'); Meet.overlay('Meeting not found.'); 
+          } else if (err.type === 'network' || err.type === 'server-error') {
+            Meet.setStatus('Network Error'); Meet.overlay('Signaling server unreachable.');
+          }
+        });
+
         this.peer.on('open', function () {
           Meet.setStatus('Connecting (Student)…');
           $('#raiseHand').style.display = 'flex'; 
@@ -257,7 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
           if (c) Meet.acceptConn(c);
           try { var media = Meet.peer.call(targetId, Meet.stream); if (media) { Meet.call = media; Meet.pipeCall(media); } } catch (e) {}
         });
-        this.peer.on('error', function (err) { if (err.type === 'peer-unavailable') { Meet.setStatus('Not found'); Meet.overlay('Meeting not found.'); } });
       },
 
       addParticipant: function(name, role) {
@@ -405,30 +416,21 @@ document.addEventListener('DOMContentLoaded', function() {
         aiBox.innerHTML += `<div class="bubble ai" id="${loadingId}"><div class="meta">Meetly AI</div>Analyzing transcript...</div>`; 
         aiBox.scrollTop = aiBox.scrollHeight;
 
-        if (!isAiReady && navigator.gpu) {
-          await initWebAI();
-        }
-
         try {
-          let summaryText = '';
-          if (isAiReady && webllmEngine) {
-            const messages = [
-              { role: "system", content: "You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items." },
-              { role: "user", content: this.transcript }
-            ];
-            const reply = await webllmEngine.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
-            summaryText = reply.choices[0].message.content;
-          } else {
-            console.log("Using Cloud API fallback (Gemini) for AI.");
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}` }] }] })
-            });
-            if (!response.ok) throw new Error('Cloud API request failed. Check API key.');
-            const data = await response.json();
-            summaryText = data.candidates[0].content.parts[0].text;
-          }
+          console.log("Using Cloud API (Gemini) for AI.");
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              contents: [{ parts: [{ text: `You are a helpful meeting assistant. Summarize the following transcript into concise bullet points and a list of action items.\n\nTranscript:\n${this.transcript}` }] }] 
+            })
+          });
+          
+          if (!response.ok) throw new Error('Cloud API request failed. Check API key.');
+          
+          const data = await response.json();
+          const summaryText = data.candidates[0].content.parts[0].text;
+          
           document.getElementById(loadingId).innerHTML = `<div class="meta">Meetly AI</div>${summaryText.replace(/\n/g, '<br>')}`;
         } catch (err) {
           console.error("AI Error:", err);
